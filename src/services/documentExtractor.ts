@@ -556,13 +556,15 @@ export const extractTextFromPDFUrl = async (
 
 /**
  * Generate SOP from extracted PDF content and user interpretation
+ * Uses EXACT same format as evidence generation with Hope Hospital branding
  */
 export const generateSOPFromContent = async (
   pdfContent: string,
   titlesInterpretation: string,
   chapterCode: string,
   chapterName: string,
-  customPrompt?: string
+  customPrompt?: string,
+  objectiveCode?: string
 ): Promise<{ success: boolean; sop: string; error?: string }> => {
   console.log('[generateSOPFromContent] Starting SOP generation for chapter:', chapterCode);
 
@@ -572,29 +574,182 @@ export const generateSOPFromContent = async (
     return { success: false, sop: '', error: 'Gemini API key not configured' };
   }
 
+  const today = new Date();
+  const effectiveDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const reviewDate = new Date(today.getTime() + 365 * 24 * 60 * 60 * 1000);
+  const formatDate = (d: Date) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+  const docNo = `SOP-${chapterCode}-${objectiveCode ? objectiveCode.replace(/\./g, '-') : '001'}`;
+
+  // Use actual Hope Hospital logo and signature images - relative paths work in iframe
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  const logoUrl = `${baseUrl}/hospital-logo.png`;
+  const sonaliSignature = `${baseUrl}/Sonali's signature.png`;
+  const gauravSignature = `${baseUrl}/Gaurav's signature.png`;
+  const shirazSignature = `${baseUrl}/Dr shiraz's signature.png`;
+
   try {
-    const prompt = `You are a NABH Accreditation Expert. Generate a comprehensive Standard Operating Procedure (SOP) in professional HTML format.
+    const prompt = `You are an expert in NABH (National Accreditation Board for Hospitals and Healthcare Providers) accreditation documentation for Hope Hospital.
+
+Generate a complete Standard Operating Procedure (SOP) HTML document in ENGLISH ONLY.
 
 ## CONTEXT
-Hospital Chapter: ${chapterCode} - ${chapterName}
-SHCO 3rd Edition Interpretation & Objective: 
+- Hospital Chapter: ${chapterCode} - ${chapterName}
+- Objective Code: ${objectiveCode || chapterCode}
+- SHCO 3rd Edition Interpretation & Objective:
 ${titlesInterpretation}
 
-Historical Data / Source Content:
+## Historical Data / Source Content:
 ${pdfContent}
 
-User Specific Instructions:
-${customPrompt || 'None'}
+## User Specific Instructions:
+${customPrompt || 'Generate a comprehensive SOP based on NABH 3rd Edition guidelines.'}
 
-## OUTPUT REQUIREMENTS (MANDATORY)
-1. Format: Complete HTML document with embedded CSS.
-2. Header Table: Use <table> tags for the header including (Document No, Issue Date, Rev No, Hospital Name).
-3. Section Headings: Use <h3> for sections: Purpose, Scope, Responsibility, Procedure, References, etc.
-4. Language & Tone: Professional, formal, and strictly compliant with SHCO 3rd Edition standards.
-5. Content Integration: Incorporate the interpretation and staff/historical data provided.
-6. Print Readiness: Ensure proper margins and clear tabular structures.
+IMPORTANT: Generate the output as a complete, valid HTML document with embedded CSS styling. The document must be modern, professional, and print-ready.
 
-Only return the HTML code, no introductory text.`;
+Use EXACTLY this HTML template structure (fill in the content sections):
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SOP - ${objectiveCode || chapterCode} - Hope Hospital</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 12px; line-height: 1.6; color: #333; padding: 20px; max-width: 800px; margin: 0 auto; }
+    .header { text-align: center; border-bottom: 3px solid #1565C0; padding-bottom: 10px; margin-bottom: 20px; }
+    .logo { width: 180px; height: auto; margin: 0 auto 2px; display: block; }
+    .hospital-address { font-size: 11px; color: #666; margin-top: -50px; }
+    .doc-title { background: linear-gradient(135deg, #1565C0, #0D47A1); color: white; padding: 12px; font-size: 16px; font-weight: bold; text-align: center; margin: 20px 0; border-radius: 5px; }
+    .info-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    .info-table th, .info-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    .info-table th { background: #f5f5f5; font-weight: 600; width: 25%; }
+    .auth-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    .auth-table th { background: linear-gradient(135deg, #1565C0, #0D47A1); color: white; padding: 10px; text-align: center; }
+    .auth-table td { border: 1px solid #ddd; padding: 15px; text-align: center; vertical-align: top; }
+    .signature-box { margin-top: 10px; padding: 8px; border: 1px solid #1565C0; border-radius: 5px; background: #f8f9fa; }
+    .signature-name { font-weight: bold; color: #1565C0; font-size: 14px; }
+    .signature-line { font-family: 'Brush Script MT', cursive; font-size: 18px; color: #0D47A1; margin: 5px 0; }
+    .section { margin: 20px 0; }
+    .section-title { background: #e3f2fd; padding: 8px 12px; font-weight: bold; color: #1565C0; border-left: 4px solid #1565C0; margin-bottom: 10px; }
+    .section-content { padding: 10px 15px; }
+    .section-content ul { margin-left: 20px; }
+    .section-content li { margin: 5px 0; }
+    .procedure-step { margin: 10px 0; padding: 10px; background: #fafafa; border-radius: 5px; border-left: 3px solid #1565C0; }
+    .step-number { display: inline-block; width: 25px; height: 25px; background: #1565C0; color: white; border-radius: 50%; text-align: center; line-height: 25px; margin-right: 10px; font-weight: bold; }
+    .data-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+    .data-table th { background: #1565C0; color: white; padding: 10px; text-align: left; }
+    .data-table td { border: 1px solid #ddd; padding: 8px; }
+    .data-table tr:nth-child(even) { background: #f9f9f9; }
+    .footer { margin-top: 30px; padding-top: 15px; border-top: 2px solid #1565C0; text-align: center; font-size: 10px; color: #666; }
+    .revision-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 11px; }
+    .revision-table th { background: #455a64; color: white; padding: 8px; }
+    .revision-table td { border: 1px solid #ddd; padding: 8px; }
+    .stamp-area { border: 2px dashed #1565C0; border-radius: 10px; padding: 15px; text-align: center; margin: 20px 0; background: #f8f9fa; }
+    .stamp-text { font-weight: bold; color: #1565C0; font-size: 14px; }
+    @media print { body { padding: 0; } .no-print { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img src="${logoUrl}" alt="Dr. Murali's Hope Hospital" class="logo" style="width: 180px; height: auto; display: block;">
+    <div class="hospital-address">2, Teka Naka, Nagpur, Maharashtra 440022 | Phone: +91 9823555053 | Email: info@hopehospital.com</div>
+  </div>
+
+  <div class="doc-title">STANDARD OPERATING PROCEDURE</div>
+
+  <table class="info-table">
+    <tr><th>Document No</th><td>${docNo}</td><th>Version</th><td>1.0</td></tr>
+    <tr><th>Department</th><td>Quality Department</td><th>Category</th><td>SOP</td></tr>
+    <tr><th>Effective Date</th><td>${formatDate(effectiveDate)}</td><th>Review Date</th><td>${formatDate(reviewDate)}</td></tr>
+    <tr><th>Objective Code</th><td colspan="3">${objectiveCode || chapterCode} - [Objective Title from content]</td></tr>
+  </table>
+
+  <table class="auth-table">
+    <tr><th>PREPARED BY</th><th>REVIEWED BY</th><th>APPROVED BY</th></tr>
+    <tr>
+      <td>
+        <div>Name: Sonali Kakde</div>
+        <div>Designation: Clinical Audit Coordinator</div>
+        <div>Date: ${formatDate(effectiveDate)}</div>
+        <div style="margin-top: 10px;">Signature:</div>
+        <img src="${sonaliSignature}" alt="Sonali Signature" style="height: 50px; max-width: 120px; object-fit: contain;">
+      </td>
+      <td>
+        <div>Name: Gaurav Agrawal</div>
+        <div>Designation: Hospital Administrator</div>
+        <div>Date: ${formatDate(effectiveDate)}</div>
+        <div style="margin-top: 10px;">Signature:</div>
+        <img src="${gauravSignature}" alt="Gaurav Signature" style="height: 50px; max-width: 120px; object-fit: contain;">
+      </td>
+      <td>
+        <div>Name: Dr. Shiraz Khan</div>
+        <div>Designation: Quality Coordinator / Administrator</div>
+        <div>Date: ${formatDate(effectiveDate)}</div>
+        <div style="margin-top: 10px;">Signature:</div>
+        <img src="${shirazSignature}" alt="Dr. Shiraz Signature" style="height: 50px; max-width: 120px; object-fit: contain;">
+      </td>
+    </tr>
+  </table>
+
+  [GENERATE THESE SECTIONS WITH DETAILED CONTENT:]
+
+  <div class="section">
+    <div class="section-title">1. Purpose</div>
+    <div class="section-content">[Generate detailed purpose based on the objective and interpretation]</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">2. Scope</div>
+    <div class="section-content">[Generate scope and applicability]</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">3. Responsibility</div>
+    <div class="section-content">[List responsible personnel and their roles]</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">4. Definitions</div>
+    <div class="section-content">[Define key terms used in this SOP]</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">5. Procedure</div>
+    <div class="section-content">
+      [Generate detailed step-by-step procedure using procedure-step divs:
+      <div class="procedure-step"><span class="step-number">1</span> Step description...</div>
+      ]
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">6. Documentation</div>
+    <div class="section-content">[List required documents, forms, and records]</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">7. References</div>
+    <div class="section-content">[Reference NABH standards, guidelines, and related documents]</div>
+  </div>
+
+  <table class="revision-table">
+    <tr><th>Version</th><th>Date</th><th>Description</th><th>Author</th></tr>
+    <tr><td>1.0</td><td>${formatDate(effectiveDate)}</td><td>Initial Release</td><td>Sonali Kakde</td></tr>
+  </table>
+
+  <div class="stamp-area">
+    <div class="stamp-text">[HOSPITAL STAMP AREA]</div>
+  </div>
+
+  <div class="footer">
+    <strong>Hope Hospital</strong> | 2, Teka Naka, Nagpur | Phone: +91 9823555053 | Email: info@hopehospital.com<br>
+    This is a controlled document. Unauthorized copying is prohibited.
+  </div>
+</body>
+</html>
+
+Generate the complete HTML document with all sections filled with relevant, professional content based on the provided interpretation and source content. Return ONLY the HTML, no markdown or explanations.`;
 
     console.log('[generateSOPFromContent] Calling Gemini API...');
     const response = await fetch(
@@ -604,10 +759,9 @@ Only return the HTML code, no introductory text.`;
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { 
-            temperature: 0.7, 
+          generationConfig: {
+            temperature: 0.7,
             maxOutputTokens: 8192,
-            response_mime_type: "text/plain"
           },
         }),
       }
@@ -622,10 +776,15 @@ Only return the HTML code, no introductory text.`;
     }
 
     let sop = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    
+
     // Clean markdown code blocks if AI included them
-    sop = sop.replace(/```html/g, '').replace(/```/g, '').trim();
-    
+    sop = sop.replace(/```html/gi, '').replace(/```/g, '').trim();
+
+    // Ensure it starts with proper DOCTYPE
+    if (!sop.toLowerCase().startsWith('<!doctype')) {
+      sop = '<!DOCTYPE html>\n<html lang="en">\n' + sop;
+    }
+
     console.log('[generateSOPFromContent] Generated SOP length:', sop.length);
 
     return { success: true, sop };
@@ -635,6 +794,94 @@ Only return the HTML code, no introductory text.`;
       success: false,
       sop: '',
       error: error instanceof Error ? error.message : 'Failed to generate SOP',
+    };
+  }
+};
+
+/**
+ * Filter relevant content from old SOP text based on objective
+ * Used in the new 3rd Edition NABH workflow
+ */
+export const filterRelevantContent = async (
+  oldSOPText: string,
+  objectiveCode: string,
+  objectiveTitle: string,
+  interpretation: string,
+  customFilterPrompt?: string
+): Promise<{ success: boolean; filteredText?: string; error?: string }> => {
+  console.log('[filterRelevantContent] Starting filter for objective:', objectiveCode);
+
+  const geminiApiKey = getGeminiApiKey();
+  if (!geminiApiKey) {
+    console.error('[filterRelevantContent] Gemini API key not configured');
+    return { success: false, error: 'Gemini API key not configured' };
+  }
+
+  if (!oldSOPText || oldSOPText.trim().length === 0) {
+    return { success: false, error: 'No old SOP text provided to filter' };
+  }
+
+  try {
+    const defaultPrompt = `You are a NABH SOP Designer and Content Filter Expert.
+
+## YOUR TASK
+From the OLD SOP TEXT below, extract ONLY the sentences/paragraphs that are DIRECTLY RELEVANT to the given objective element from NABH 3rd Edition.
+
+## OBJECTIVE ELEMENT DETAILS
+- Code: ${objectiveCode}
+- Title: ${objectiveTitle}
+- Interpretation: ${interpretation}
+
+## OLD SOP TEXT (1st & 2nd Edition)
+${oldSOPText}
+
+## INSTRUCTIONS
+1. Read through the entire old SOP text carefully
+2. Identify sentences, paragraphs, or sections that relate to the objective
+3. Extract ONLY relevant content - do not add new content
+4. Maintain the original wording and structure of extracted content
+5. If a procedure/step is relevant, include it completely
+6. Group related content together logically
+7. If no relevant content is found, state "No directly relevant content found in the old SOP text."
+
+## OUTPUT FORMAT
+Return only the filtered relevant content, organized clearly. No explanations or headers needed.`;
+
+    const prompt = customFilterPrompt || defaultPrompt;
+
+    console.log('[filterRelevantContent] Calling Gemini API...');
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.3, // Lower temperature for more deterministic extraction
+            maxOutputTokens: 8192,
+          },
+        }),
+      }
+    );
+
+    console.log('[filterRelevantContent] Gemini API response status:', response.status);
+    const data = await response.json();
+
+    if (data.error) {
+      console.error('[filterRelevantContent] Gemini API error:', data.error);
+      return { success: false, error: data.error.message || 'Gemini API error' };
+    }
+
+    const filteredText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    console.log('[filterRelevantContent] Filtered text length:', filteredText.length);
+
+    return { success: true, filteredText };
+  } catch (error) {
+    console.error('[filterRelevantContent] Error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to filter content',
     };
   }
 };
