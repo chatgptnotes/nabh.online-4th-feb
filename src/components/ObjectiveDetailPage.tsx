@@ -149,10 +149,6 @@ export default function ObjectiveDetailPage() {
   const [generatedSOPContent, setGeneratedSOPContent] = useState('');
 
   // State for Quality Documentation Assistant
-  // @ts-expect-error - Unused but kept for future use
-  const [isGeneratingEvidence, setIsGeneratingEvidence] = useState(false);
-  // @ts-expect-error - Unused but kept for future use
-  const [generatedEvidenceList, setGeneratedEvidenceList] = useState<string[]>([]);
   const [isGeneratingHindi, setIsGeneratingHindi] = useState(false);
   const [isSavingInterpretation, setIsSavingInterpretation] = useState(false);
   const [interpretationSaveSuccess, setInterpretationSaveSuccess] = useState(false);
@@ -202,31 +198,12 @@ export default function ObjectiveDetailPage() {
     isAuditorPriority: boolean; // Marked as priority for auditors
   }
   const [parsedEvidenceItems, setParsedEvidenceItems] = useState<ParsedEvidenceItem[]>([]);
-  // @ts-expect-error - Unused but kept for future use
-  const [isGeneratingDocuments, setIsGeneratingDocuments] = useState(false);
   const [documentGenerationProgress, setDocumentGenerationProgress] = useState({ current: 0, total: 0 });
-  // @ts-expect-error - Unused but kept for future use
-  const [savedEvidences, setSavedEvidences] = useState<GeneratedEvidence[]>([]);
-  // @ts-expect-error - Unused but kept for future use
-  const [isLoadingEvidences, setIsLoadingEvidences] = useState(false);
-  // @ts-expect-error - Unused but kept for future use
-  const [evidenceViewModes, setEvidenceViewModes] = useState<Record<string, number>>({});
-  // @ts-expect-error - Unused but kept for future use
-  const [editingEvidenceContent, setEditingEvidenceContent] = useState<Record<string, string>>({});
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
 
   // State for custom prompt-based evidence generation
   const [customEvidencePrompt, setCustomEvidencePrompt] = useState('');
-  // @ts-expect-error - Unused but kept for future use
-  const [isGeneratingCustomEvidence, setIsGeneratingCustomEvidence] = useState(false);
-
-  // State for generating detailed evidence document for individual items
-  // @ts-expect-error - Unused but kept for future use
-  const [generatingDetailedDocFor, setGeneratingDetailedDocFor] = useState<string | null>(null);
-  // State for inline document preview (shows generated doc on same page)
-  // @ts-expect-error - Unused but kept for future use
-  const [inlinePreviewDoc, setInlinePreviewDoc] = useState<{ itemId: string; html: string } | null>(null);
 
   // State for evidence generation from interpretation
   interface InterpretationEvidenceItem {
@@ -250,13 +227,9 @@ export default function ObjectiveDetailPage() {
   }
   const [suggestedRegisters, setSuggestedRegisters] = useState<RegisterItem[]>([]);
   const [selectedRegisters, setSelectedRegisters] = useState<string[]>([]);
-  // @ts-expect-error - Unused but kept for future use
-  const [isGeneratingRegisters, setIsGeneratingRegisters] = useState(false);
 
   // State for document improvement feature
   const [uploadedDocumentFile, setUploadedDocumentFile] = useState<File | null>(null);
-  // @ts-expect-error - Unused but kept for future use
-  const [uploadedDocumentPreview, setUploadedDocumentPreview] = useState<string>('');
 
   // Helper function to convert numbers to Roman numerals
   const toRomanNumeral = (num: number): string => {
@@ -273,10 +246,6 @@ export default function ObjectiveDetailPage() {
     return result;
   };
   const [extractedDocumentText, setExtractedDocumentText] = useState('');
-  // @ts-expect-error - Unused but kept for future use
-  const [isExtractingText, setIsExtractingText] = useState(false);
-  // @ts-expect-error - Unused but kept for future use
-  const [isImprovingDocument, setIsImprovingDocument] = useState(false);
   const documentUploadRef = useRef<HTMLInputElement>(null);
 
   // State for Generate Evidence from Documents feature

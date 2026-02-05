@@ -6,6 +6,7 @@
 import * as XLSX from 'xlsx';
 import { getGeminiApiKey } from '../lib/supabase';
 import { getRelevantData } from './hopeHospitalDatabase';
+import { generateDocumentNumber, getFormattedDate, getReviewDate } from '../utils/documentNumbering';
 import type {
   UploadedDocument,
   DocumentExtractedData,
@@ -670,17 +671,17 @@ Use this HTML template structure:
   <div class="doc-title">[DOCUMENT TITLE]</div>
 
   <table class="info-table">
-    <tr><th>Document No</th><td>[DOC-XXX-001]</td><th>Version</th><td>1.0</td></tr>
+    <tr><th>Document No</th><td>${generateDocumentNumber(objectiveCode)}</td><th>Version</th><td>1.0</td></tr>
     <tr><th>Department</th><td>[Department]</td><th>Category</th><td>[Policy/SOP/Record]</td></tr>
-    <tr><th>Effective Date</th><td>${new Date().toLocaleDateString('en-GB')}</td><th>Review Date</th><td>${new Date(Date.now() + 365*24*60*60*1000).toLocaleDateString('en-GB')}</td></tr>
+    <tr><th>Effective Date</th><td>${getFormattedDate()}</td><th>Review Date</th><td>${getReviewDate()}</td></tr>
   </table>
 
   <table class="auth-table">
     <tr><th>PREPARED BY</th><th>REVIEWED BY</th><th>APPROVED BY</th></tr>
     <tr>
-      <td>Name: Sonali Kakde<br>Designation: Clinical Audit Coordinator<br>Date: ${new Date().toLocaleDateString('en-GB')}<br><br>Signature:<br><img src="/Sonali's signature.png" alt="Sonali Kakde Signature" style="height: 50px; max-width: 120px; object-fit: contain;"></td>
-      <td>Name: Gaurav Agrawal<br>Designation: Hospital Administrator<br>Date: ${new Date().toLocaleDateString('en-GB')}<br><br>Signature:<br><img src="/Gaurav's signature.png" alt="Gaurav Agrawal Signature" style="height: 50px; max-width: 120px; object-fit: contain;"></td>
-      <td>Name: Dr. Shiraz Khan<br>Designation: NABH Coordinator / Administrator<br>Date: ${new Date().toLocaleDateString('en-GB')}<br><br>Signature:<br><img src="/Dr shiraz's signature.png" alt="Dr. Shiraz Khan Signature" style="height: 50px; max-width: 120px; object-fit: contain;"></td>
+      <td>Name: Sonali Kakde<br>Designation: Clinical Audit Coordinator<br>Date: ${getFormattedDate()}<br><br>Signature:<br><img src="/Sonali's signature.png" alt="Sonali Kakde Signature" style="height: 50px; max-width: 120px; object-fit: contain;"></td>
+      <td>Name: Gaurav Agrawal<br>Designation: Hospital Administrator<br>Date: ${getFormattedDate()}<br><br>Signature:<br><img src="/Gaurav's signature.png" alt="Gaurav Agrawal Signature" style="height: 50px; max-width: 120px; object-fit: contain;"></td>
+      <td>Name: Dr. Shiraz Khan<br>Designation: NABH Coordinator / Administrator<br>Date: ${getFormattedDate()}<br><br>Signature:<br><img src="/Dr shiraz's signature.png" alt="Dr. Shiraz Khan Signature" style="height: 50px; max-width: 120px; object-fit: contain;"></td>
     </tr>
   </table>
 
@@ -688,7 +689,7 @@ Use this HTML template structure:
 
   <table class="revision-table">
     <tr><th>Version</th><th>Date</th><th>Description</th><th>Changed By</th></tr>
-    <tr><td>1.0</td><td>${new Date().toLocaleDateString('en-GB')}</td><td>Initial Release</td><td>Sonali Kakde</td></tr>
+    <tr><td>1.0</td><td>${getFormattedDate()}</td><td>Initial Release</td><td>Sonali Kakde</td></tr>
   </table>
 
   <div class="stamp-area">[HOSPITAL STAMP AREA]</div>
@@ -892,9 +893,9 @@ Generate a complete, print-ready HTML document using this template structure:
   <table class="auth-table">
     <tr><th>PREPARED BY</th><th>REVIEWED BY</th><th>APPROVED BY</th></tr>
     <tr>
-      <td>Name: Sonali Kakde<br>Designation: Clinical Audit Coordinator<br>Date: ${new Date().toLocaleDateString('en-GB')}<br><br>Signature:<br><img src="/Sonali's signature.png" alt="Sonali Kakde Signature" style="height: 50px; max-width: 120px; object-fit: contain;"></td>
-      <td>Name: Gaurav Agrawal<br>Designation: Hospital Administrator<br>Date: ${new Date().toLocaleDateString('en-GB')}<br><br>Signature:<br><img src="/Gaurav's signature.png" alt="Gaurav Agrawal Signature" style="height: 50px; max-width: 120px; object-fit: contain;"></td>
-      <td>Name: Dr. Shiraz Khan<br>Designation: NABH Coordinator / Administrator<br>Date: ${new Date().toLocaleDateString('en-GB')}<br><br>Signature:<br><img src="/Dr shiraz's signature.png" alt="Dr. Shiraz Khan Signature" style="height: 50px; max-width: 120px; object-fit: contain;"></td>
+      <td>Name: Sonali Kakde<br>Designation: Clinical Audit Coordinator<br>Date: ${getFormattedDate()}<br><br>Signature:<br><img src="/Sonali's signature.png" alt="Sonali Kakde Signature" style="height: 50px; max-width: 120px; object-fit: contain;"></td>
+      <td>Name: Gaurav Agrawal<br>Designation: Hospital Administrator<br>Date: ${getFormattedDate()}<br><br>Signature:<br><img src="/Gaurav's signature.png" alt="Gaurav Agrawal Signature" style="height: 50px; max-width: 120px; object-fit: contain;"></td>
+      <td>Name: Dr. Shiraz Khan<br>Designation: NABH Coordinator / Administrator<br>Date: ${getFormattedDate()}<br><br>Signature:<br><img src="/Dr shiraz's signature.png" alt="Dr. Shiraz Khan Signature" style="height: 50px; max-width: 120px; object-fit: contain;"></td>
     </tr>
   </table>
 
@@ -905,7 +906,7 @@ Generate a complete, print-ready HTML document using this template structure:
 
   <table class="revision-table">
     <tr><th>Version</th><th>Date</th><th>Description</th><th>Changed By</th></tr>
-    <tr><td>1.0</td><td>${new Date().toLocaleDateString('en-GB')}</td><td>Initial Release</td><td>Sonali Kakde</td></tr>
+    <tr><td>1.0</td><td>${getFormattedDate()}</td><td>Initial Release</td><td>Sonali Kakde</td></tr>
   </table>
 
   <div class="stamp-area">[HOSPITAL STAMP AREA]</div>
