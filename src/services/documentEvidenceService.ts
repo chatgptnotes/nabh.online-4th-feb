@@ -291,70 +291,187 @@ export const parseGoogleDriveUrl = (url: string): { documentId: string; docType:
 };
 
 /**
+ * Fetch a generic file from Google Drive via backend proxy
+ * This handles PDFs, Word docs, images, Excel files, etc.
+ * Requires API routes - use "vercel dev" for local development.
+ */
+export const fetchGoogleDriveFile = async (
+  fileId: string
+): Promise<{ data: string; mimeType: string; filename: string }> => {
+  const response = await fetch('/api/fetch-drive-file', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fileId }),
+  });
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error(
+        'Google Drive file fetch requires API routes. Run "vercel dev" instead of "npm run dev" for local development.'
+      );
+    }
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Failed to fetch file: ${response.status}`);
+  }
+
+  const result = await response.json();
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to fetch file from Google Drive');
+  }
+
+  return {
+    data: result.data,
+    mimeType: result.mimeType,
+    filename: result.filename,
+  };
+};
+
+/**
+ * Map MIME type to DocumentFileType
+ */
+export const mimeTypeToFileType = (mimeType: string): DocumentFileType | null => {
+  const mimeMap: Record<string, DocumentFileType> = {
+    'application/pdf': 'pdf',
+    'application/msword': 'doc',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+    'image/png': 'png',
+    'image/jpeg': 'jpg',
+    'image/jpg': 'jpg',
+    'application/vnd.ms-excel': 'xls',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+  };
+
+  // Direct match
+  if (mimeMap[mimeType]) {
+    return mimeMap[mimeType];
+  }
+
+  // Partial match for edge cases
+  if (mimeType.includes('pdf')) return 'pdf';
+  if (mimeType.includes('word')) return 'docx';
+  if (mimeType.includes('png')) return 'png';
+  if (mimeType.includes('jpeg') || mimeType.includes('jpg')) return 'jpg';
+  if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return 'xlsx';
+  if (mimeType.includes('image')) return 'png'; // Fallback for other images
+
+  return null;
+};
+
+/**
+ * Convert base64 data to File object
+ */
+export const base64ToFile = (base64Data: string, filename: string, mimeType: string): File => {
+  // Decode base64 to binary
+  const binaryString = atob(base64Data);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+
+  // Create File from binary data
+  const blob = new Blob([bytes], { type: mimeType });
+  return new File([blob], filename, { type: mimeType });
+};
+
+/**
  * Fetch content from public Google Drive document
+ * Supports Google Docs, Sheets, Slides, and generic files (PDF, Word, images, Excel)
  */
 export const extractFromGoogleDrive = async (url: string): Promise<DocumentExtractedData> => {
   const parsed = parseGoogleDriveUrl(url);
   if (!parsed) {
-    throw new Error('Invalid Google Drive URL. Please use a valid Google Docs, Sheets, or Drive link.');
+    throw new Error('Invalid Google Drive URL. Please use a valid Google Drive link.');
   }
 
   const { documentId, docType } = parsed;
 
-  // Build export URL based on document type
-  let exportUrl: string;
-  let format: string;
+  // Handle native Google Docs, Sheets, and Slides via export
+  if (docType !== 'unknown') {
+    let exportUrl: string;
+    let format: string;
 
-  switch (docType) {
-    case 'document':
-      exportUrl = `https://docs.google.com/document/d/${documentId}/export?format=txt`;
-      format = 'text';
-      break;
-    case 'spreadsheet':
-      exportUrl = `https://docs.google.com/spreadsheets/d/${documentId}/export?format=csv`;
-      format = 'csv';
-      break;
-    case 'presentation':
-      exportUrl = `https://docs.google.com/presentation/d/${documentId}/export?format=txt`;
-      format = 'text';
-      break;
-    default:
-      throw new Error('Unsupported Google Drive file type. Please use Google Docs, Sheets, or Slides links.');
+    switch (docType) {
+      case 'document':
+        exportUrl = `https://docs.google.com/document/d/${documentId}/export?format=txt`;
+        format = 'text';
+        break;
+      case 'spreadsheet':
+        exportUrl = `https://docs.google.com/spreadsheets/d/${documentId}/export?format=csv`;
+        format = 'csv';
+        break;
+      case 'presentation':
+        exportUrl = `https://docs.google.com/presentation/d/${documentId}/export?format=txt`;
+        format = 'text';
+        break;
+      default:
+        throw new Error('Unsupported document type');
+    }
+
+    try {
+      const response = await fetch(exportUrl);
+
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          throw new Error('Document is not publicly accessible. Please share the document with "Anyone with the link can view" permission.');
+        }
+        throw new Error(`Failed to fetch document: ${response.status}`);
+      }
+
+      const text = await response.text();
+
+      if (format === 'csv') {
+        // Parse CSV into table format
+        const lines = text.split('\n').filter(l => l.trim());
+        const headers = lines[0]?.split(',').map(h => h.trim().replace(/^"|"$/g, '')) || [];
+        const rows = lines.slice(1).map(line =>
+          line.split(',').map(cell => cell.trim().replace(/^"|"$/g, ''))
+        );
+
+        return {
+          rawText: text,
+          documentType: 'spreadsheet',
+          tables: [{ headers, rows }],
+        };
+      }
+
+      return parseExtractedText(text);
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Failed to fetch Google Drive document. Please ensure the document is publicly accessible.');
+    }
   }
 
+  // Handle generic Google Drive files (PDF, Word, images, Excel, etc.)
+  // Fetch via backend proxy to bypass CORS
   try {
-    const response = await fetch(exportUrl);
+    const { data, mimeType, filename } = await fetchGoogleDriveFile(documentId);
 
-    if (!response.ok) {
-      if (response.status === 401 || response.status === 403) {
-        throw new Error('Document is not publicly accessible. Please share the document with "Anyone with the link can view" permission.');
-      }
-      throw new Error(`Failed to fetch document: ${response.status}`);
-    }
+    // Determine file type from MIME type
+    const fileType = mimeTypeToFileType(mimeType);
 
-    const text = await response.text();
-
-    if (format === 'csv') {
-      // Parse CSV into table format
-      const lines = text.split('\n').filter(l => l.trim());
-      const headers = lines[0]?.split(',').map(h => h.trim().replace(/^"|"$/g, '')) || [];
-      const rows = lines.slice(1).map(line =>
-        line.split(',').map(cell => cell.trim().replace(/^"|"$/g, ''))
+    if (!fileType) {
+      throw new Error(
+        `Unsupported file type: ${mimeType}. Supported types: PDF, Word (DOC/DOCX), images (PNG/JPG), Excel (XLS/XLSX).`
       );
-
-      return {
-        rawText: text,
-        documentType: 'spreadsheet',
-        tables: [{ headers, rows }],
-      };
     }
 
-    return parseExtractedText(text);
+    // Convert base64 to File object
+    const file = base64ToFile(data, filename, mimeType);
+
+    // Route to appropriate extraction function based on file type
+    if (fileType === 'xlsx' || fileType === 'xls') {
+      return extractFromExcel(file);
+    }
+
+    // For PDF, Word docs, and images - use Gemini Vision
+    return extractWithGeminiVision(file);
   } catch (error) {
     if (error instanceof Error) {
       throw error;
     }
-    throw new Error('Failed to fetch Google Drive document. Please ensure the document is publicly accessible.');
+    throw new Error('Failed to fetch file from Google Drive. Please ensure the file is publicly accessible.');
   }
 };
 

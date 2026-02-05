@@ -3226,7 +3226,7 @@ Provide only the Hindi explanation, no English text. The explanation should be c
 
     const parsed = parseGoogleDriveUrl(googleDriveUrlInput);
     if (!parsed) {
-      setSnackbarMessage('Invalid Google Drive URL. Please use a valid Google Docs, Sheets, or Slides link.');
+      setSnackbarMessage('Invalid Google Drive URL. Please use a valid Google Drive link (docs.google.com or drive.google.com).');
       setSnackbarOpen(true);
       return;
     }
@@ -4949,10 +4949,10 @@ Provide only the Hindi explanation, no English text. The explanation should be c
                     fullWidth
                     size="small"
                     label="Google Drive Link"
-                    placeholder="https://docs.google.com/document/d/..."
+                    placeholder="https://drive.google.com/file/d/... or https://docs.google.com/..."
                     value={googleDriveUrlInput}
                     onChange={(e) => setGoogleDriveUrlInput(e.target.value)}
-                    helperText="Document must be shared as 'Anyone with the link can view'"
+                    helperText="Supports Google Docs, Sheets, Slides, PDFs, Word docs, images, and Excel files. File must be shared as 'Anyone with the link can view'."
                   />
                   <Button
                     variant="outlined"
