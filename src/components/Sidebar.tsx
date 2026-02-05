@@ -82,6 +82,7 @@ const MANAGEMENT_SECTIONS = [
   { id: 'doctors', label: 'Resident Doctors', icon: 'medication_liquid', path: '/doctors', description: 'Manage RMOs and full-time doctors' },
   { id: 'nabh-master', label: 'NABH Master', icon: 'edit_note', path: '/nabh-master', description: 'Manage chapters, standards & elements' },
   { id: 'migration', label: 'Data Migration', icon: 'upload_file', path: '/migration', description: 'Import NABH standards data' },
+  { id: 'old-extracted-sops', label: "Old Extracted SOP's", icon: 'history', path: '/old-extracted-sops', description: 'View extracted SOP data from nabh_chapter_data table' },
 ];
 
 const drawerWidth = 280;

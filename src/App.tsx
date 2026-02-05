@@ -43,6 +43,7 @@ import SOPsPage from './components/SOPsPage';
 import RecentSOPsPage from './components/RecentSOPsPage';
 import SharedSOPPage from './components/SharedSOPPage';
 import DocumentLevelsPage from './components/DocumentLevelsPage';
+import OldExtractedSOPsPage from './components/OldExtractedSOPsPage';
 import Footer from './components/Footer';
 import { useNABHStore } from './store/nabhStore';
 
@@ -292,6 +293,7 @@ function MainContent() {
   const isSOPsPage = location.pathname === '/sops';
   const isRecentSOPsPage = location.pathname === '/recent-sops';
   const isDocumentLevelsPage = location.pathname === '/document-levels';
+  const isOldExtractedSOPsPage = location.pathname === '/old-extracted-sops';
   const isDashboardPage = location.pathname === '/dashboard';
   const isLandingPage = location.pathname === '/' && !selectedChapter;
 
@@ -423,6 +425,10 @@ function MainContent() {
     return <DocumentLevelsPage />;
   }
 
+  if (isOldExtractedSOPsPage) {
+    return <OldExtractedSOPsPage />;
+  }
+
   if (isDashboardPage) {
     return <Dashboard />;
   }
@@ -455,7 +461,7 @@ function AppContent() {
   const isAIPage = location.pathname === '/ai-generator';
   const isObjectiveDetailPage = location.pathname.startsWith('/objective/');
   const isKPIDetailPage = location.pathname.startsWith('/kpi/');
-  const isManagementPage = ['/stationery', '/committees', '/surveys', '/cheat-sheets', '/search', '/kpis', '/presentations', '/nabh-master', '/migration', '/patients', '/employees', '/consultants', '/doctors', '/departments', '/equipment', '/programs', '/clinical-audits', '/manuals', '/licenses', '/mous', '/evidence-prompt', '/sop-prompt', '/emergency-codes', '/signage-generator', '/image-generator', '/call-center', '/sops', '/recent-sops', '/dashboard'].includes(location.pathname) || isKPIDetailPage;
+  const isManagementPage = ['/stationery', '/committees', '/surveys', '/cheat-sheets', '/search', '/kpis', '/presentations', '/nabh-master', '/migration', '/patients', '/employees', '/consultants', '/doctors', '/departments', '/equipment', '/programs', '/clinical-audits', '/manuals', '/licenses', '/mous', '/evidence-prompt', '/sop-prompt', '/emergency-codes', '/signage-generator', '/image-generator', '/call-center', '/sops', '/recent-sops', '/old-extracted-sops', '/dashboard'].includes(location.pathname) || isKPIDetailPage;
   const isLandingPage = location.pathname === '/' && !selectedChapter;
   const showSidebar = !isAIPage && !isLandingPage && !isObjectiveDetailPage || isManagementPage;
 
