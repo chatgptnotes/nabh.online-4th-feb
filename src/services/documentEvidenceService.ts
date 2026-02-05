@@ -1083,6 +1083,59 @@ export const deleteFileFromStorage = async (storageUrl: string): Promise<{ succe
 };
 
 /**
+ * Save a Google Drive link to the database (no file upload needed)
+ */
+export const saveGoogleDriveLink = async (
+  objectiveCode: string,
+  url: string,
+  documentId: string,
+  docType: string,
+  extractedData?: DocumentExtractedData,
+  extractionError?: string
+): Promise<{ success: boolean; record?: SourceDocumentRecord; error?: string }> => {
+  try {
+    const record = {
+      objective_code: objectiveCode,
+      file_name: url, // Store URL as filename for Google Drive links
+      file_type: docType || 'unknown',
+      file_size: 0,
+      storage_url: url, // Store the Google Drive URL
+      extraction_status: extractedData ? 'extracted' : (extractionError ? 'error' : 'pending'),
+      extracted_data: extractedData || null,
+      extraction_error: extractionError || null,
+      source_type: 'gdrive',
+    };
+
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/nabh_evidence_source_documents`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Prefer': 'return=representation',
+        },
+        body: JSON.stringify(record),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error saving Google Drive link:', response.status, errorText);
+      return { success: false, error: `${response.status}: ${errorText}` };
+    }
+
+    const data = await response.json();
+    return { success: true, record: data[0] as SourceDocumentRecord };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error saving Google Drive link:', errorMessage);
+    return { success: false, error: errorMessage };
+  }
+};
+
+/**
  * Save a source document record to the database
  */
 export const saveSourceDocument = async (
@@ -1269,6 +1322,34 @@ export const deleteSourceDocument = async (
     console.error('Error deleting source document:', errorMessage);
     return { success: false, error: errorMessage };
   }
+};
+
+/**
+ * Convert a SourceDocumentRecord (Google Drive) to GoogleDriveLink format for UI
+ */
+export const recordToGoogleDriveLink = (record: SourceDocumentRecord): {
+  id: string;
+  url: string;
+  documentId: string;
+  docType: string;
+  status: 'extracting' | 'extracted' | 'error';
+  extractedData?: DocumentExtractedData;
+  error?: string;
+} => {
+  // Extract documentId from URL
+  const urlMatch = record.storage_url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  const documentId = urlMatch ? urlMatch[1] : '';
+
+  return {
+    id: record.id,
+    url: record.storage_url,
+    documentId,
+    docType: record.file_type || 'unknown',
+    status: record.extraction_status === 'extracted' ? 'extracted' :
+            record.extraction_status === 'error' ? 'error' : 'extracting',
+    extractedData: record.extracted_data || undefined,
+    error: record.extraction_error || undefined,
+  };
 };
 
 /**
