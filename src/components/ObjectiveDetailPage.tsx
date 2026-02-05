@@ -64,6 +64,21 @@ import {
   type ColorScheme,
 } from '../services/infographicGenerator';
 import { getRelevantData } from '../services/hopeHospitalDatabase';
+import {
+  extractDocumentContent,
+  extractFromGoogleDrive,
+  formatDocumentAsEvidence,
+  createUploadedDocument,
+  formatFileSize,
+  parseGoogleDriveUrl,
+  loadSourceDocuments,
+  saveSourceDocument,
+  deleteSourceDocument,
+  recordToUploadedDocument,
+  saveDocumentEvidence,
+  loadDocumentEvidence,
+} from '../services/documentEvidenceService';
+import type { UploadedDocument, DocumentEvidenceResult, GoogleDriveLink, SourceDocumentRecord, SavedDocumentEvidence } from '../types/documentEvidence';
 
 // Expandable TextField styles
 const expandableTextFieldSx = {
@@ -261,6 +276,30 @@ export default function ObjectiveDetailPage() {
   // @ts-expect-error - Unused but kept for future use
   const [isImprovingDocument, setIsImprovingDocument] = useState(false);
   const documentUploadRef = useRef<HTMLInputElement>(null);
+
+  // State for Generate Evidence from Documents feature
+  const [uploadedDocumentsForEvidence, setUploadedDocumentsForEvidence] = useState<UploadedDocument[]>([]);
+  const [googleDriveLinks, setGoogleDriveLinks] = useState<GoogleDriveLink[]>([]);
+  const [googleDriveUrlInput, setGoogleDriveUrlInput] = useState('');
+  const [isExtractingDocuments, setIsExtractingDocuments] = useState(false);
+  const [isGeneratingFromDocuments, setIsGeneratingFromDocuments] = useState(false);
+  const [documentEvidenceResult, setDocumentEvidenceResult] = useState<DocumentEvidenceResult | null>(null);
+  const documentEvidenceUploadRef = useRef<HTMLInputElement>(null);
+
+  // Document evidence preview/edit states
+  const [documentPreviewOpen, setDocumentPreviewOpen] = useState(false);
+  const [documentEditOpen, setDocumentEditOpen] = useState(false);
+  const documentEditIframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Saved document evidence states
+  const [savedDocumentEvidence, setSavedDocumentEvidence] = useState<SavedDocumentEvidence | null>(null);
+  const [isLoadingSavedDoc, setIsLoadingSavedDoc] = useState(false);
+  const [isSavingDoc, setIsSavingDoc] = useState(false);
+  const [savedDocPreviewOpen, setSavedDocPreviewOpen] = useState(false);
+
+  // Document selection state (only one at a time for evidence generation)
+  const [selectedDocForEvidence, setSelectedDocForEvidence] = useState<string | null>(null);
+  const [lastGeneratedDocId, setLastGeneratedDocId] = useState<string | null>(null);
 
   // Hospital config for evidence generation
   const nabhCoordinator = getNABHCoordinator();
@@ -473,6 +512,57 @@ export default function ObjectiveDetailPage() {
     };
 
     loadSavedEvidences();
+  }, [objective?.code]);
+
+  // Load saved source documents for evidence generation
+  useEffect(() => {
+    const loadSavedSourceDocuments = async () => {
+      if (!objective?.code) return;
+
+      try {
+        const result = await loadSourceDocuments(objective.code);
+        if (result.success && result.data && result.data.length > 0) {
+          // Convert database records to UploadedDocument format
+          const documents = result.data
+            .filter(record => record.source_type === 'upload')
+            .map(record => recordToUploadedDocument(record));
+
+          if (documents.length > 0) {
+            setUploadedDocumentsForEvidence(documents);
+            console.log(`[Source Documents] Loaded ${documents.length} saved documents for ${objective.code}`);
+          }
+        }
+      } catch (error) {
+        console.warn('Could not load saved source documents:', error);
+      }
+    };
+
+    loadSavedSourceDocuments();
+  }, [objective?.code]);
+
+  // Load saved document evidence for this objective
+  useEffect(() => {
+    const loadSavedDocEvidence = async () => {
+      if (!objective?.code) return;
+
+      setIsLoadingSavedDoc(true);
+      try {
+        const result = await loadDocumentEvidence(objective.code);
+        if (result.success && result.data) {
+          setSavedDocumentEvidence(result.data);
+          console.log(`[Saved Doc Evidence] Loaded saved document for ${objective.code}`);
+        } else {
+          setSavedDocumentEvidence(null);
+        }
+      } catch (error) {
+        console.warn('Could not load saved document evidence:', error);
+        setSavedDocumentEvidence(null);
+      } finally {
+        setIsLoadingSavedDoc(false);
+      }
+    };
+
+    loadSavedDocEvidence();
   }, [objective?.code]);
 
   // Load suggested registers when objective changes
@@ -3035,6 +3125,347 @@ Provide only the Hindi explanation, no English text. The explanation should be c
     navigate('/');
   };
 
+  // === Generate Evidence from Documents Handlers ===
+
+  // Handle document upload for evidence generation
+  const handleDocumentEvidenceUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const newDocs: UploadedDocument[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const doc = createUploadedDocument(file);
+      if (doc) {
+        newDocs.push(doc);
+      } else {
+        setSnackbarMessage(`Unsupported file type: ${file.name}`);
+        setSnackbarOpen(true);
+      }
+    }
+
+    if (newDocs.length > 0) {
+      setUploadedDocumentsForEvidence(prev => [...prev, ...newDocs]);
+
+      // Start extracting content from each document
+      setIsExtractingDocuments(true);
+      for (const doc of newDocs) {
+        try {
+          setUploadedDocumentsForEvidence(prev =>
+            prev.map(d => d.id === doc.id ? { ...d, status: 'extracting' } : d)
+          );
+
+          const extractedData = await extractDocumentContent(doc);
+
+          // Save to database after successful extraction
+          if (objective?.code) {
+            const saveResult = await saveSourceDocument(
+              objective.code,
+              doc.file,
+              extractedData
+            );
+
+            if (saveResult.success && saveResult.record) {
+              // Update local state with database ID and data
+              setUploadedDocumentsForEvidence(prev =>
+                prev.map(d => d.id === doc.id ? {
+                  ...d,
+                  id: saveResult.record!.id, // Use database ID
+                  status: 'extracted',
+                  extractedData,
+                } : d)
+              );
+              console.log(`[Source Documents] Saved document to database: ${saveResult.record.id}`);
+            } else {
+              // Still update UI with extracted data even if save fails
+              console.warn('[Source Documents] Failed to save to database:', saveResult.error);
+              setUploadedDocumentsForEvidence(prev =>
+                prev.map(d => d.id === doc.id ? { ...d, status: 'extracted', extractedData } : d)
+              );
+            }
+          } else {
+            // No objective code, just update UI
+            setUploadedDocumentsForEvidence(prev =>
+              prev.map(d => d.id === doc.id ? { ...d, status: 'extracted', extractedData } : d)
+            );
+          }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Extraction failed';
+
+          // Try to save to database with error state
+          if (objective?.code) {
+            await saveSourceDocument(
+              objective.code,
+              doc.file,
+              undefined,
+              errorMessage
+            );
+          }
+
+          setUploadedDocumentsForEvidence(prev =>
+            prev.map(d => d.id === doc.id ? { ...d, status: 'error', error: errorMessage } : d)
+          );
+        }
+      }
+      setIsExtractingDocuments(false);
+    }
+
+    // Clear the input
+    if (event.target) {
+      event.target.value = '';
+    }
+  };
+
+  // Handle Google Drive link addition
+  const handleAddGoogleDriveLink = async () => {
+    if (!googleDriveUrlInput.trim()) {
+      setSnackbarMessage('Please enter a Google Drive URL');
+      setSnackbarOpen(true);
+      return;
+    }
+
+    const parsed = parseGoogleDriveUrl(googleDriveUrlInput);
+    if (!parsed) {
+      setSnackbarMessage('Invalid Google Drive URL. Please use a valid Google Docs, Sheets, or Slides link.');
+      setSnackbarOpen(true);
+      return;
+    }
+
+    const newLink: GoogleDriveLink = {
+      id: `gdrive-${Date.now()}`,
+      url: googleDriveUrlInput,
+      documentId: parsed.documentId,
+      docType: parsed.docType,
+      status: 'extracting',
+    };
+
+    setGoogleDriveLinks(prev => [...prev, newLink]);
+    setGoogleDriveUrlInput('');
+
+    // Extract content from Google Drive
+    try {
+      const extractedData = await extractFromGoogleDrive(googleDriveUrlInput);
+      setGoogleDriveLinks(prev =>
+        prev.map(l => l.id === newLink.id ? { ...l, status: 'extracted', extractedData } : l)
+      );
+    } catch (error) {
+      setGoogleDriveLinks(prev =>
+        prev.map(l => l.id === newLink.id ? { ...l, status: 'error', error: error instanceof Error ? error.message : 'Failed to fetch document' } : l)
+      );
+      setSnackbarMessage(error instanceof Error ? error.message : 'Failed to fetch Google Drive document');
+      setSnackbarOpen(true);
+    }
+  };
+
+  // Remove uploaded document (also deletes from database)
+  const handleRemoveUploadedDocument = async (docId: string) => {
+    // Find the document to get its storage URL
+    const docToRemove = uploadedDocumentsForEvidence.find(d => d.id === docId);
+
+    // Remove from local state immediately
+    setUploadedDocumentsForEvidence(prev => prev.filter(d => d.id !== docId));
+
+    // Delete from database if it's a persisted document (UUID format)
+    if (docToRemove && docId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      try {
+        // Load the record to get storage URL (since mock File doesn't have it)
+        const loadResult = await loadSourceDocuments(objective?.code || '');
+        const record = loadResult.data?.find(r => r.id === docId);
+
+        if (record) {
+          const deleteResult = await deleteSourceDocument(docId, record.storage_url);
+          if (deleteResult.success) {
+            console.log(`[Source Documents] Deleted document from database: ${docId}`);
+          } else {
+            console.warn('[Source Documents] Failed to delete from database:', deleteResult.error);
+          }
+        }
+      } catch (error) {
+        console.warn('[Source Documents] Error deleting from database:', error);
+      }
+    }
+  };
+
+  // Remove Google Drive link
+  const handleRemoveGoogleDriveLink = (linkId: string) => {
+    setGoogleDriveLinks(prev => prev.filter(l => l.id !== linkId));
+  };
+
+  // Generate evidence from uploaded documents (formats extracted content as NABH document)
+  const handleGenerateEvidenceFromDocuments = async () => {
+    // Find the selected document
+    const selectedDoc = uploadedDocumentsForEvidence.find(
+      d => d.id === selectedDocForEvidence && d.status === 'extracted' && d.extractedData
+    );
+
+    // Also check Google Drive links
+    const selectedGDriveLink = googleDriveLinks.find(
+      l => l.id === selectedDocForEvidence && l.status === 'extracted' && l.extractedData
+    );
+
+    if (!selectedDoc && !selectedGDriveLink) {
+      setSnackbarMessage('Please select a document first by clicking its checkbox.');
+      setSnackbarOpen(true);
+      return;
+    }
+
+    setIsGeneratingFromDocuments(true);
+    setDocumentEvidenceResult(null);
+
+    try {
+      // Generate for single selected document
+      const documentData = selectedDoc ? [selectedDoc.extractedData!] : [selectedGDriveLink!.extractedData!];
+      const fileNames = selectedDoc
+        ? [selectedDoc.fileName]
+        : [selectedGDriveLink!.url.split('/').pop() || 'Google Drive Document'];
+
+      const result = await formatDocumentAsEvidence({
+        documentData,
+        objectiveCode: objective?.code || '',
+        objectiveTitle: objective?.title || '',
+        fileNames,
+        hospitalConfig: {
+          name: hospitalConfig.name,
+          address: hospitalConfig.address,
+          phone: hospitalConfig.phone,
+          email: hospitalConfig.email,
+          website: hospitalConfig.website,
+        },
+      });
+
+      setDocumentEvidenceResult(result);
+
+      // Store which doc was used for this evidence
+      if (result.success) {
+        setLastGeneratedDocId(selectedDocForEvidence);
+        setSnackbarMessage('Document formatted as NABH evidence successfully!');
+        setSnackbarOpen(true);
+      } else {
+        setSnackbarMessage(result.error || 'Failed to format document');
+        setSnackbarOpen(true);
+      }
+    } catch (error) {
+      setDocumentEvidenceResult({
+        success: false,
+        error: error instanceof Error ? error.message : 'An error occurred',
+      });
+      setSnackbarMessage('Error formatting document');
+      setSnackbarOpen(true);
+    } finally {
+      setIsGeneratingFromDocuments(false);
+    }
+  };
+
+  // Make document HTML editable
+  const makeDocumentEditable = (html: string): string => {
+    if (!html) return '';
+    let editableHtml = html.replace(
+      '<body',
+      `<body contenteditable="true" style="outline: none; cursor: text;"`
+    );
+    editableHtml = editableHtml.replace(
+      '</head>',
+      `<style>
+        body[contenteditable="true"]:focus { outline: 2px solid #1565C0; outline-offset: 2px; }
+        body[contenteditable="true"] *:hover { background: rgba(21, 101, 192, 0.05); }
+        body[contenteditable="true"] *:focus { outline: 1px dashed #1565C0; }
+      </style></head>`
+    );
+    return editableHtml;
+  };
+
+  // Save edits from the edit dialog
+  const handleSaveDocumentEdit = () => {
+    const iframe = documentEditIframeRef.current;
+    if (iframe && documentEvidenceResult?.htmlContent) {
+      const iframeDoc = iframe.contentDocument;
+      if (iframeDoc) {
+        const body = iframeDoc.body;
+        if (body) {
+          body.removeAttribute('contenteditable');
+          body.style.removeProperty('outline');
+          body.style.removeProperty('cursor');
+        }
+        // Remove editing styles
+        const editingStyles = iframeDoc.querySelectorAll('style');
+        editingStyles.forEach(style => {
+          if (style.textContent?.includes('contenteditable')) {
+            style.remove();
+          }
+        });
+
+        const newHTML = '<!DOCTYPE html>\n' + (iframeDoc.documentElement?.outerHTML || '');
+        setDocumentEvidenceResult(prev => prev ? {
+          ...prev,
+          htmlContent: newHTML,
+        } : null);
+      }
+      setDocumentEditOpen(false);
+      setSnackbarMessage('Document changes saved');
+      setSnackbarOpen(true);
+    }
+  };
+
+  // Print from preview dialog
+  const handlePrintFromPreview = () => {
+    if (!documentEvidenceResult?.htmlContent) return;
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(documentEvidenceResult.htmlContent);
+      printWindow.document.close();
+      printWindow.print();
+    }
+  };
+
+  // Save generated document evidence to database
+  const handleSaveDocumentToDb = async () => {
+    if (!documentEvidenceResult?.htmlContent || !objective?.code) return;
+
+    // Get the filename of the document that was used to generate this evidence
+    const selectedDoc = uploadedDocumentsForEvidence.find(d => d.id === lastGeneratedDocId);
+    const selectedLink = googleDriveLinks.find(l => l.id === lastGeneratedDocId);
+    const sourceFilename = selectedDoc?.fileName || (selectedLink ? `gdrive_${selectedLink.docType}_${selectedLink.documentId}` : undefined);
+
+    setIsSavingDoc(true);
+    try {
+      const result = await saveDocumentEvidence(
+        objective.code,
+        documentEvidenceResult.htmlContent,
+        documentEvidenceResult.title,
+        selectedHospital,
+        sourceFilename
+      );
+
+      if (result.success && result.data) {
+        setSavedDocumentEvidence(result.data);
+        setSnackbarMessage('Document saved to database successfully!');
+        setSnackbarOpen(true);
+      } else {
+        setSnackbarMessage(`Failed to save document: ${result.error}`);
+        setSnackbarOpen(true);
+      }
+    } catch (error) {
+      console.error('Error saving document to database:', error);
+      setSnackbarMessage('Failed to save document to database');
+      setSnackbarOpen(true);
+    } finally {
+      setIsSavingDoc(false);
+    }
+  };
+
+  // Print saved document from preview dialog
+  const handlePrintSavedDoc = () => {
+    if (!savedDocumentEvidence?.html_content) return;
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(savedDocumentEvidence.html_content);
+      printWindow.document.close();
+      printWindow.print();
+    }
+  };
+
+  // === End Generate Evidence from Documents Handlers ===
+
   return (
     <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
       {/* Breadcrumbs */}
@@ -3088,8 +3519,20 @@ Provide only the Hindi explanation, no English text. The explanation should be c
             )}
             <Chip label={objective.category} size="medium" variant="outlined" />
           </Box>
-          {/* Save Status Indicator */}
+          {/* Save Status Indicator and View Saved Doc Button */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {/* View Saved Document Button */}
+            <Button
+              variant="outlined"
+              color="secondary"
+              size="small"
+              startIcon={isLoadingSavedDoc ? <CircularProgress size={14} /> : <Icon>folder_open</Icon>}
+              onClick={() => setSavedDocPreviewOpen(true)}
+              disabled={!savedDocumentEvidence || isLoadingSavedDoc}
+              sx={{ minWidth: 140 }}
+            >
+              {isLoadingSavedDoc ? 'Loading...' : savedDocumentEvidence ? 'View Saved Doc' : 'No Saved Doc'}
+            </Button>
             {isLoadingFromDb && (
               <Chip
                 icon={<CircularProgress size={14} />}
@@ -4440,6 +4883,329 @@ Provide only the Hindi explanation, no English text. The explanation should be c
             </AccordionDetails>
           </Accordion>
 
+          {/* Generate Evidence from Documents Section */}
+          <Accordion>
+            <AccordionSummary expandIcon={<Icon>expand_more</Icon>}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Icon color="secondary">upload_file</Icon>
+                <Typography fontWeight={600}>
+                  Generate Evidence from Documents
+                </Typography>
+                {(uploadedDocumentsForEvidence.length > 0 || googleDriveLinks.length > 0) && (
+                  <Chip
+                    size="small"
+                    label={uploadedDocumentsForEvidence.length + googleDriveLinks.length}
+                    color="secondary"
+                    sx={{ ml: 1 }}
+                  />
+                )}
+              </Box>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {/* Upload Instructions */}
+                <Alert severity="info" icon={<Icon>info</Icon>}>
+                  <Typography variant="body2">
+                    Upload documents (PDF, DOC, DOCX, images, Excel) or paste Google Drive links.
+                    AI will extract data and generate professional NABH evidence documents.
+                  </Typography>
+                </Alert>
+
+                {/* File Upload Zone */}
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 3,
+                    textAlign: 'center',
+                    borderStyle: 'dashed',
+                    borderWidth: 2,
+                    borderColor: 'grey.400',
+                    bgcolor: 'grey.50',
+                    cursor: 'pointer',
+                    '&:hover': { borderColor: 'primary.main', bgcolor: 'primary.50' },
+                  }}
+                  onClick={() => documentEvidenceUploadRef.current?.click()}
+                >
+                  <input
+                    ref={documentEvidenceUploadRef}
+                    type="file"
+                    hidden
+                    multiple
+                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.xlsx,.xls"
+                    onChange={handleDocumentEvidenceUpload}
+                  />
+                  <Icon sx={{ fontSize: 48, color: 'grey.500', mb: 1 }}>cloud_upload</Icon>
+                  <Typography variant="h6" color="text.secondary" gutterBottom>
+                    Drag & Drop or Click to Upload
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Supported: PDF, DOC, DOCX, PNG, JPG, JPEG, XLSX, XLS
+                  </Typography>
+                </Paper>
+
+                {/* Google Drive Link Input */}
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Google Drive Link"
+                    placeholder="https://docs.google.com/document/d/..."
+                    value={googleDriveUrlInput}
+                    onChange={(e) => setGoogleDriveUrlInput(e.target.value)}
+                    helperText="Document must be shared as 'Anyone with the link can view'"
+                  />
+                  <Button
+                    variant="outlined"
+                    startIcon={<Icon>add_link</Icon>}
+                    onClick={handleAddGoogleDriveLink}
+                    disabled={!googleDriveUrlInput.trim()}
+                    sx={{ minWidth: 120, mt: 0 }}
+                  >
+                    Add Link
+                  </Button>
+                </Box>
+
+                {/* Uploaded Documents List */}
+                {uploadedDocumentsForEvidence.length > 0 && (
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Icon fontSize="small">folder</Icon>
+                      Uploaded Files ({uploadedDocumentsForEvidence.length})
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      {uploadedDocumentsForEvidence.map((doc) => (
+                        <Paper key={doc.id} variant="outlined" sx={{ p: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                          {/* Selection checkbox - only show when extracted */}
+                          {doc.status === 'extracted' && (
+                            <Checkbox
+                              size="small"
+                              checked={selectedDocForEvidence === doc.id}
+                              onChange={() => setSelectedDocForEvidence(
+                                selectedDocForEvidence === doc.id ? null : doc.id
+                              )}
+                              sx={{ p: 0.5 }}
+                            />
+                          )}
+                          <Icon color={
+                            doc.status === 'extracted' ? 'success' :
+                            doc.status === 'extracting' ? 'primary' :
+                            doc.status === 'error' ? 'error' : 'action'
+                          }>
+                            {doc.fileType === 'pdf' ? 'picture_as_pdf' :
+                             doc.fileType.startsWith('xls') ? 'table_chart' :
+                             ['png', 'jpg', 'jpeg'].includes(doc.fileType) ? 'image' : 'description'}
+                          </Icon>
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography variant="body2" noWrap fontWeight={500}>
+                              {doc.fileName}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {formatFileSize(doc.fileSize)} •
+                              {doc.status === 'pending' && ' Pending extraction...'}
+                              {doc.status === 'extracting' && ' Extracting content...'}
+                              {doc.status === 'extracted' && ' Content extracted'}
+                              {doc.status === 'error' && ` Error: ${doc.error}`}
+                            </Typography>
+                          </Box>
+                          {doc.status === 'extracting' && <CircularProgress size={20} />}
+                          {doc.status === 'extracted' && <Icon color="success">check_circle</Icon>}
+                          {doc.status === 'error' && <Icon color="error">error</Icon>}
+
+                          {/* View button - always show, disabled if no saved evidence */}
+                          <Tooltip title={savedDocumentEvidence ? "View saved evidence" : "No saved evidence"}>
+                            <span> {/* Wrapper needed for Tooltip on disabled button */}
+                              <IconButton
+                                size="small"
+                                color="secondary"
+                                disabled={!savedDocumentEvidence}
+                                onClick={() => setSavedDocPreviewOpen(true)}
+                              >
+                                <Icon fontSize="small">visibility</Icon>
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+
+                          <IconButton size="small" onClick={() => handleRemoveUploadedDocument(doc.id)}>
+                            <Icon fontSize="small">close</Icon>
+                          </IconButton>
+                        </Paper>
+                      ))}
+                    </Box>
+                  </Box>
+                )}
+
+                {/* Google Drive Links List */}
+                {googleDriveLinks.length > 0 && (
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Icon fontSize="small">link</Icon>
+                      Google Drive Links ({googleDriveLinks.length})
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      {googleDriveLinks.map((link) => (
+                        <Paper key={link.id} variant="outlined" sx={{ p: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                          {/* Selection checkbox - only show when extracted */}
+                          {link.status === 'extracted' && (
+                            <Checkbox
+                              size="small"
+                              checked={selectedDocForEvidence === link.id}
+                              onChange={() => setSelectedDocForEvidence(
+                                selectedDocForEvidence === link.id ? null : link.id
+                              )}
+                              sx={{ p: 0.5 }}
+                            />
+                          )}
+                          <Icon color={
+                            link.status === 'extracted' ? 'success' :
+                            link.status === 'extracting' ? 'primary' :
+                            link.status === 'error' ? 'error' : 'action'
+                          }>
+                            {link.docType === 'spreadsheet' ? 'table_chart' :
+                             link.docType === 'presentation' ? 'slideshow' : 'article'}
+                          </Icon>
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography variant="body2" noWrap fontWeight={500}>
+                              {link.docType.charAt(0).toUpperCase() + link.docType.slice(1)} Document
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" noWrap>
+                              {link.status === 'extracting' && 'Fetching content...'}
+                              {link.status === 'extracted' && 'Content extracted'}
+                              {link.status === 'error' && `Error: ${link.error}`}
+                            </Typography>
+                          </Box>
+                          {link.status === 'extracting' && <CircularProgress size={20} />}
+                          {link.status === 'extracted' && <Icon color="success">check_circle</Icon>}
+                          {link.status === 'error' && <Icon color="error">error</Icon>}
+
+                          {/* View button - always show, disabled if no saved evidence */}
+                          <Tooltip title={savedDocumentEvidence ? "View saved evidence" : "No saved evidence"}>
+                            <span> {/* Wrapper needed for Tooltip on disabled button */}
+                              <IconButton
+                                size="small"
+                                color="secondary"
+                                disabled={!savedDocumentEvidence}
+                                onClick={() => setSavedDocPreviewOpen(true)}
+                              >
+                                <Icon fontSize="small">visibility</Icon>
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+
+                          <IconButton size="small" onClick={() => handleRemoveGoogleDriveLink(link.id)}>
+                            <Icon fontSize="small">close</Icon>
+                          </IconButton>
+                        </Paper>
+                      ))}
+                    </Box>
+                  </Box>
+                )}
+
+                {/* Format as NABH Document Button */}
+                {(uploadedDocumentsForEvidence.some(d => d.status === 'extracted') || googleDriveLinks.some(l => l.status === 'extracted')) && (
+                  <Box sx={{ mt: 1 }}>
+                    <Divider sx={{ mb: 2 }} />
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                      {selectedDocForEvidence
+                        ? 'Document selected. Click below to format it as a professional NABH evidence document.'
+                        : 'Select a document using the checkbox, then click below to format it as NABH evidence.'}
+                    </Alert>
+                    <Button
+                      variant="contained"
+                      color="secondary"
+                      startIcon={isGeneratingFromDocuments ? <CircularProgress size={16} color="inherit" /> : <Icon>auto_awesome</Icon>}
+                      onClick={handleGenerateEvidenceFromDocuments}
+                      disabled={isGeneratingFromDocuments || !selectedDocForEvidence}
+                      sx={{ mt: 1 }}
+                      fullWidth
+                    >
+                      {isGeneratingFromDocuments ? 'Formatting Document...' : 'Format as NABH Document'}
+                    </Button>
+                  </Box>
+                )}
+
+                {/* Generated Evidence Preview */}
+                {documentEvidenceResult && (
+                  <Box sx={{ mt: 2 }}>
+                    <Divider sx={{ mb: 2 }} />
+                    {documentEvidenceResult.success && documentEvidenceResult.htmlContent ? (
+                      <>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                          <Typography variant="subtitle2" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <Icon color="success">check_circle</Icon>
+                            Generated Evidence Document
+                          </Typography>
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              startIcon={<Icon>visibility</Icon>}
+                              onClick={() => setDocumentPreviewOpen(true)}
+                            >
+                              Preview
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              color="secondary"
+                              startIcon={<Icon>edit_document</Icon>}
+                              onClick={() => setDocumentEditOpen(true)}
+                            >
+                              Edit in Preview
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              color="success"
+                              startIcon={isSavingDoc ? <CircularProgress size={14} color="inherit" /> : <Icon>save</Icon>}
+                              onClick={handleSaveDocumentToDb}
+                              disabled={isSavingDoc}
+                            >
+                              {isSavingDoc ? 'Saving...' : 'Save to DB'}
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              color="secondary"
+                              startIcon={<Icon>folder_open</Icon>}
+                              onClick={() => setSavedDocPreviewOpen(true)}
+                              disabled={!savedDocumentEvidence}
+                            >
+                              View Saved Doc
+                            </Button>
+                          </Box>
+                        </Box>
+                        <Paper
+                          variant="outlined"
+                          sx={{
+                            height: 500,
+                            overflow: 'hidden',
+                            bgcolor: 'white',
+                          }}
+                        >
+                          <iframe
+                            srcDoc={documentEvidenceResult.htmlContent}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              border: 'none',
+                            }}
+                            title="Generated Evidence Preview"
+                          />
+                        </Paper>
+                      </>
+                    ) : (
+                      <Alert severity="error">
+                        <Typography variant="body2">
+                          {documentEvidenceResult.error || 'Failed to generate evidence document'}
+                        </Typography>
+                      </Alert>
+                    )}
+                  </Box>
+                )}
+              </Box>
+            </AccordionDetails>
+          </Accordion>
+
           <Divider />
 
           {/* Notes */}
@@ -4627,6 +5393,138 @@ Provide only the Hindi explanation, no English text. The explanation should be c
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Document Preview Dialog */}
+      <Dialog
+        open={documentPreviewOpen}
+        onClose={() => setDocumentPreviewOpen(false)}
+        fullScreen
+        PaperProps={{ sx: { bgcolor: 'grey.100' } }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: 'primary.main', color: 'white' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Icon>description</Icon>
+            <Typography variant="h6">Document Preview</Typography>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              variant="contained"
+              color="inherit"
+              startIcon={<Icon>print</Icon>}
+              onClick={handlePrintFromPreview}
+              sx={{ color: 'primary.main' }}
+            >
+              Print
+            </Button>
+            <IconButton onClick={() => setDocumentPreviewOpen(false)} sx={{ color: 'white' }}>
+              <Icon>close</Icon>
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ p: 2 }}>
+          <Paper variant="outlined" sx={{ height: 'calc(100vh - 150px)', overflow: 'hidden', bgcolor: 'white' }}>
+            {documentEvidenceResult?.htmlContent && (
+              <iframe
+                srcDoc={documentEvidenceResult.htmlContent}
+                title="Document Preview"
+                style={{ width: '100%', height: '100%', border: 'none', backgroundColor: 'white' }}
+              />
+            )}
+          </Paper>
+        </DialogContent>
+      </Dialog>
+
+      {/* Document Edit Dialog */}
+      <Dialog
+        open={documentEditOpen}
+        onClose={() => setDocumentEditOpen(false)}
+        fullScreen
+        PaperProps={{ sx: { bgcolor: 'grey.100' } }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: 'primary.main', color: 'white' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Icon>edit_document</Icon>
+            <Typography variant="h6">Edit Document in Preview</Typography>
+          </Box>
+          <IconButton onClick={() => setDocumentEditOpen(false)} sx={{ color: 'white' }}>
+            <Icon>close</Icon>
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 2 }}>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <Typography variant="body2">
+              Click directly on the document to edit text. Changes are made directly in the formatted preview.
+              Use the <strong>Save Changes</strong> button below to save your edits.
+            </Typography>
+          </Alert>
+          <Paper variant="outlined" sx={{ height: 'calc(100vh - 220px)', overflow: 'hidden', bgcolor: 'white' }}>
+            {documentEvidenceResult?.htmlContent && (
+              <iframe
+                ref={documentEditIframeRef}
+                srcDoc={makeDocumentEditable(documentEvidenceResult.htmlContent)}
+                title="Editable Document Preview"
+                style={{ width: '100%', height: '100%', border: 'none', backgroundColor: 'white' }}
+              />
+            )}
+          </Paper>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2, bgcolor: 'grey.50', borderTop: '1px solid', borderColor: 'divider' }}>
+          <Button variant="outlined" startIcon={<Icon>close</Icon>} onClick={() => setDocumentEditOpen(false)}>
+            Cancel
+          </Button>
+          <Button variant="contained" color="primary" startIcon={<Icon>save</Icon>} onClick={handleSaveDocumentEdit}>
+            Save Changes
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Saved Document Preview Dialog */}
+      <Dialog
+        open={savedDocPreviewOpen}
+        onClose={() => setSavedDocPreviewOpen(false)}
+        fullScreen
+        PaperProps={{ sx: { bgcolor: 'grey.100' } }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: 'secondary.main', color: 'white' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Icon>folder_open</Icon>
+            <Typography variant="h6">
+              Saved Document - {savedDocumentEvidence?.title || objective?.code}
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            {savedDocumentEvidence && (
+              <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                Last updated: {new Date(savedDocumentEvidence.updated_at).toLocaleString()}
+              </Typography>
+            )}
+            <Button
+              variant="contained"
+              color="inherit"
+              startIcon={<Icon>print</Icon>}
+              onClick={handlePrintSavedDoc}
+              sx={{ color: 'secondary.main' }}
+            >
+              Print
+            </Button>
+            <IconButton onClick={() => setSavedDocPreviewOpen(false)} sx={{ color: 'white' }}>
+              <Icon>close</Icon>
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ p: 2 }}>
+          <Paper variant="outlined" sx={{ height: 'calc(100vh - 150px)', overflow: 'hidden', bgcolor: 'white' }}>
+            {savedDocumentEvidence?.html_content && (
+              <iframe
+                srcDoc={savedDocumentEvidence.html_content}
+                title="Saved Document Preview"
+                style={{ width: '100%', height: '100%', border: 'none', backgroundColor: 'white' }}
+              />
+            )}
+          </Paper>
+        </DialogContent>
+      </Dialog>
+
     </Box>
   );
 }
