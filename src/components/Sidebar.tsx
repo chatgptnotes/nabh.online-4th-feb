@@ -27,7 +27,8 @@ const DOCUMENT_LEVELS = [
     path: '/document-levels?level=2',
     color: '#2E7D32',
     children: [
-      { id: 'sops', label: 'SOPs', icon: 'description', path: '/sops' }
+      { id: 'sops', label: 'SOPs', icon: 'description', path: '/sops' },
+      { id: 'recent-sops', label: 'Recent SOPs', icon: 'schedule', path: '/recent-sops' }
     ]
   },
   { id: 'level-3', label: 'Level 3: Work Instructions', icon: 'assignment', path: '/document-levels?level=3', color: '#ED6C02' },
