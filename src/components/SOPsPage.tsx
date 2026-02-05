@@ -49,6 +49,7 @@ import {
   saveSOPDocument,
   updateSOPDocument,
   deleteSOPDocument,
+  uploadMultipleSOPPdfs,
 } from '../services/sopStorage';
 import {
   extractFileIdFromUrl,
@@ -107,11 +108,17 @@ export default function SOPsPage() {
     category: 'Procedure',
     is_public: false,
     extracted_content: '',
+    pdf_urls: [],
+    pdf_filenames: [],
   });
 
   // Import state
   const [importUrl, setImportUrl] = useState('');
   const [importing, setImporting] = useState(false);
+
+  // PDF upload state
+  const [pendingPdfs, setPendingPdfs] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Snackbar
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
@@ -183,15 +190,45 @@ export default function SOPsPage() {
       category: 'Procedure',
       is_public: false,
       extracted_content: '',
+      pdf_urls: [],
+      pdf_filenames: [],
     });
+    setPendingPdfs([]);
     setAddDialogOpen(true);
   };
 
   const handleEdit = (sop: SOPDocument) => {
     setSelectedSOP(sop);
-    setFormData(sop);
+    setFormData({
+      ...sop,
+      pdf_urls: sop.pdf_urls || [],
+      pdf_filenames: sop.pdf_filenames || [],
+    });
+    setPendingPdfs([]);
     setEditDialogOpen(true);
     handleCloseMenu();
+  };
+
+  const handlePdfSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+    const newFiles = Array.from(files).filter(f => f.type === 'application/pdf');
+    if (newFiles.length !== files.length) {
+      showSnackbar('Only PDF files are allowed', 'error');
+    }
+    setPendingPdfs(prev => [...prev, ...newFiles]);
+  };
+
+  const handleRemovePdf = (index: number, isExisting: boolean) => {
+    if (isExisting) {
+      setFormData(prev => ({
+        ...prev,
+        pdf_urls: (prev.pdf_urls || []).filter((_, i) => i !== index),
+        pdf_filenames: (prev.pdf_filenames || []).filter((_, i) => i !== index),
+      }));
+    } else {
+      setPendingPdfs(prev => prev.filter((_, i) => i !== index));
+    }
   };
 
   const handleView = (sop: SOPDocument) => {
@@ -219,19 +256,46 @@ export default function SOPsPage() {
       return;
     }
 
-    const sopData = {
-      ...formData,
-      chapter_name: NABH_CHAPTERS.find(ch => ch.code === formData.chapter_code)?.name || formData.chapter_code,
-    };
+    setIsUploading(true);
 
-    const result = await saveSOPDocument(sopData as Omit<SOPDocument, 'id' | 'created_at' | 'updated_at'>);
+    try {
+      // Upload pending PDFs first
+      let pdfUrls = [...(formData.pdf_urls || [])];
+      let pdfFilenames = [...(formData.pdf_filenames || [])];
 
-    if (result.success) {
-      showSnackbar('SOP saved successfully', 'success');
-      setAddDialogOpen(false);
-      loadSOPsData();
-    } else {
-      showSnackbar(result.error || 'Failed to save SOP', 'error');
+      if (pendingPdfs.length > 0) {
+        const uploadResult = await uploadMultipleSOPPdfs(pendingPdfs);
+        if (uploadResult.success && uploadResult.urls && uploadResult.filenames) {
+          pdfUrls = [...pdfUrls, ...uploadResult.urls];
+          pdfFilenames = [...pdfFilenames, ...uploadResult.filenames];
+        } else {
+          throw new Error(uploadResult.error || 'Failed to upload PDFs');
+        }
+      }
+
+      const sopData = {
+        ...formData,
+        chapter_name: NABH_CHAPTERS.find(ch => ch.code === formData.chapter_code)?.name || formData.chapter_code,
+        pdf_urls: pdfUrls,
+        pdf_filenames: pdfFilenames,
+        pdf_url: pdfUrls[0] || undefined,
+        pdf_filename: pdfFilenames[0] || undefined,
+      };
+
+      const result = await saveSOPDocument(sopData as Omit<SOPDocument, 'id' | 'created_at' | 'updated_at'>);
+
+      if (result.success) {
+        showSnackbar('SOP saved successfully', 'success');
+        setAddDialogOpen(false);
+        setPendingPdfs([]);
+        loadSOPsData();
+      } else {
+        showSnackbar(result.error || 'Failed to save SOP', 'error');
+      }
+    } catch (error) {
+      showSnackbar(error instanceof Error ? error.message : 'Failed to save SOP', 'error');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -241,14 +305,45 @@ export default function SOPsPage() {
       return;
     }
 
-    const result = await updateSOPDocument(selectedSOP.id, formData);
+    setIsUploading(true);
 
-    if (result.success) {
-      showSnackbar('SOP updated successfully', 'success');
-      setEditDialogOpen(false);
-      loadSOPsData();
-    } else {
-      showSnackbar(result.error || 'Failed to update SOP', 'error');
+    try {
+      // Upload pending PDFs first
+      let pdfUrls = [...(formData.pdf_urls || [])];
+      let pdfFilenames = [...(formData.pdf_filenames || [])];
+
+      if (pendingPdfs.length > 0) {
+        const uploadResult = await uploadMultipleSOPPdfs(pendingPdfs);
+        if (uploadResult.success && uploadResult.urls && uploadResult.filenames) {
+          pdfUrls = [...pdfUrls, ...uploadResult.urls];
+          pdfFilenames = [...pdfFilenames, ...uploadResult.filenames];
+        } else {
+          throw new Error(uploadResult.error || 'Failed to upload PDFs');
+        }
+      }
+
+      const updateData = {
+        ...formData,
+        pdf_urls: pdfUrls,
+        pdf_filenames: pdfFilenames,
+        pdf_url: pdfUrls[0] || undefined,
+        pdf_filename: pdfFilenames[0] || undefined,
+      };
+
+      const result = await updateSOPDocument(selectedSOP.id, updateData);
+
+      if (result.success) {
+        showSnackbar('SOP updated successfully', 'success');
+        setEditDialogOpen(false);
+        setPendingPdfs([]);
+        loadSOPsData();
+      } else {
+        showSnackbar(result.error || 'Failed to update SOP', 'error');
+      }
+    } catch (error) {
+      showSnackbar(error instanceof Error ? error.message : 'Failed to update SOP', 'error');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -614,7 +709,7 @@ export default function SOPsPage() {
               label="Content"
               fullWidth
               multiline
-              rows={10}
+              rows={8}
               required
               value={formData.extracted_content}
               onChange={e => setFormData({ ...formData, extracted_content: e.target.value })}
@@ -625,17 +720,93 @@ export default function SOPsPage() {
                 Linked to Google Drive: <a href={formData.google_drive_url} target="_blank" rel="noopener noreferrer">View Original</a>
               </Alert>
             )}
+
+            {/* PDF Upload Section */}
+            <Paper variant="outlined" sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 2 }}>
+              <Box display="flex" alignItems="center" gap={1} mb={2}>
+                <Icon sx={{ color: '#D32F2F' }}>picture_as_pdf</Icon>
+                <Typography fontWeight={600}>Attach PDF Documents</Typography>
+              </Box>
+              <Button
+                variant="outlined"
+                component="label"
+                startIcon={<Icon>cloud_upload</Icon>}
+                disabled={isUploading}
+              >
+                Upload PDFs
+                <input
+                  type="file"
+                  hidden
+                  multiple
+                  accept=".pdf"
+                  onChange={handlePdfSelect}
+                />
+              </Button>
+              <Typography variant="caption" color="text.secondary" sx={{ ml: 2 }}>
+                Max file size: 10MB per file. You can upload multiple PDFs.
+              </Typography>
+
+              {/* Existing PDFs */}
+              {(formData.pdf_urls?.length ?? 0) > 0 && (
+                <Box mt={2}>
+                  <Typography variant="caption" color="text.secondary" gutterBottom>
+                    Uploaded PDFs:
+                  </Typography>
+                  <Box display="flex" flexWrap="wrap" gap={1} mt={1}>
+                    {formData.pdf_urls?.map((url, index) => (
+                      <Chip
+                        key={`existing-${index}`}
+                        label={formData.pdf_filenames?.[index] || `PDF ${index + 1}`}
+                        icon={<Icon sx={{ fontSize: 18 }}>picture_as_pdf</Icon>}
+                        onDelete={() => handleRemovePdf(index, true)}
+                        onClick={() => window.open(url, '_blank')}
+                        sx={{ cursor: 'pointer' }}
+                      />
+                    ))}
+                  </Box>
+                </Box>
+              )}
+
+              {/* Pending PDFs */}
+              {pendingPdfs.length > 0 && (
+                <Box mt={2}>
+                  <Typography variant="caption" color="text.secondary" gutterBottom>
+                    Pending upload:
+                  </Typography>
+                  <Box display="flex" flexWrap="wrap" gap={1} mt={1}>
+                    {pendingPdfs.map((file, index) => (
+                      <Chip
+                        key={`pending-${index}`}
+                        label={file.name}
+                        icon={<Icon sx={{ fontSize: 18 }}>upload_file</Icon>}
+                        onDelete={() => handleRemovePdf(index, false)}
+                        color="primary"
+                        variant="outlined"
+                      />
+                    ))}
+                  </Box>
+                </Box>
+              )}
+            </Paper>
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => {
-            setAddDialogOpen(false);
-            setEditDialogOpen(false);
-          }}>
+          <Button
+            onClick={() => {
+              setAddDialogOpen(false);
+              setEditDialogOpen(false);
+            }}
+            disabled={isUploading}
+          >
             Cancel
           </Button>
-          <Button variant="contained" onClick={addDialogOpen ? handleSave : handleUpdate}>
-            {addDialogOpen ? 'Save' : 'Update'}
+          <Button
+            variant="contained"
+            onClick={addDialogOpen ? handleSave : handleUpdate}
+            disabled={isUploading}
+            startIcon={isUploading ? <CircularProgress size={20} color="inherit" /> : null}
+          >
+            {isUploading ? 'Saving...' : (addDialogOpen ? 'Save' : 'Update')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -705,6 +876,68 @@ export default function SOPsPage() {
                   '& .sop-table td, & .sop-table th': { border: '1px solid #ddd', p: 1 },
                 }}
               />
+              {/* Attached PDFs - Embedded Viewer */}
+              {selectedSOP.pdf_urls && selectedSOP.pdf_urls.length > 0 && (
+                <Box mt={3}>
+                  <Divider sx={{ mb: 2 }} />
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    Attached Documents
+                  </Typography>
+
+                  {/* PDF Tabs if multiple */}
+                  {selectedSOP.pdf_urls.length > 1 && (
+                    <Box display="flex" flexWrap="wrap" gap={1} mb={2}>
+                      {selectedSOP.pdf_urls.map((url, index) => (
+                        <Chip
+                          key={index}
+                          label={selectedSOP.pdf_filenames?.[index] || `PDF ${index + 1}`}
+                          icon={<Icon sx={{ fontSize: 18 }}>picture_as_pdf</Icon>}
+                          onClick={() => window.open(url, '_blank')}
+                          color="primary"
+                          variant="outlined"
+                          sx={{ cursor: 'pointer' }}
+                        />
+                      ))}
+                    </Box>
+                  )}
+
+                  {/* Embedded PDF Viewer */}
+                  {selectedSOP.pdf_urls.map((url, index) => (
+                    <Box key={index} sx={{ mb: 2 }}>
+                      {selectedSOP.pdf_urls && selectedSOP.pdf_urls.length > 1 && (
+                        <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                          {selectedSOP.pdf_filenames?.[index] || `PDF ${index + 1}`}
+                        </Typography>
+                      )}
+                      <Paper
+                        variant="outlined"
+                        sx={{
+                          width: '100%',
+                          height: 500,
+                          overflow: 'hidden',
+                          borderRadius: 2,
+                        }}
+                      >
+                        <iframe
+                          src={`${url}#toolbar=1&navpanes=0`}
+                          width="100%"
+                          height="100%"
+                          style={{ border: 'none' }}
+                          title={selectedSOP.pdf_filenames?.[index] || `PDF ${index + 1}`}
+                        />
+                      </Paper>
+                      <Button
+                        size="small"
+                        startIcon={<Icon>open_in_new</Icon>}
+                        onClick={() => window.open(url, '_blank')}
+                        sx={{ mt: 1 }}
+                      >
+                        Open in New Tab
+                      </Button>
+                    </Box>
+                  ))}
+                </Box>
+              )}
             </Box>
           )}
         </DialogContent>

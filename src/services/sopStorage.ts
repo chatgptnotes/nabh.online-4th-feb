@@ -6,6 +6,63 @@
 import { supabase } from '../lib/supabase';
 import type { SOPDocument } from '../types/sop';
 
+interface UploadResponse {
+  success: boolean;
+  url?: string;
+  filename?: string;
+  error?: string;
+}
+
+/**
+ * Upload a single PDF to Supabase storage
+ */
+export async function uploadSOPPdf(file: File): Promise<UploadResponse> {
+  try {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const filePath = `sops/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('documents')
+      .upload(filePath, file);
+
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage.from('documents').getPublicUrl(filePath);
+    return { success: true, url: data.publicUrl, filename: file.name };
+  } catch (error) {
+    console.error('Error uploading PDF:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Upload failed' };
+  }
+}
+
+/**
+ * Upload multiple PDFs to Supabase storage
+ */
+export async function uploadMultipleSOPPdfs(files: File[]): Promise<{ success: boolean; urls?: string[]; filenames?: string[]; error?: string }> {
+  try {
+    const uploadPromises = files.map(file => uploadSOPPdf(file));
+    const results = await Promise.all(uploadPromises);
+
+    const urls: string[] = [];
+    const filenames: string[] = [];
+
+    for (const result of results) {
+      if (result.success && result.url && result.filename) {
+        urls.push(result.url);
+        filenames.push(result.filename);
+      } else {
+        throw new Error(result.error || 'One or more uploads failed');
+      }
+    }
+
+    return { success: true, urls, filenames };
+  } catch (error) {
+    console.error('Error uploading multiple PDFs:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Upload failed' };
+  }
+}
+
 /**
  * Create nabh_sop_documents table
  */
@@ -42,6 +99,10 @@ export async function saveSOPDocument(sop: Omit<SOPDocument, 'id' | 'created_at'
         tags: sop.tags,
         is_public: sop.is_public,
         created_by: sop.created_by,
+        pdf_url: sop.pdf_url,
+        pdf_filename: sop.pdf_filename,
+        pdf_urls: sop.pdf_urls,
+        pdf_filenames: sop.pdf_filenames,
       }])
       .select()
       .single();

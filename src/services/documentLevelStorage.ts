@@ -5,8 +5,12 @@ export interface DocumentLevelItem {
   level: number;
   title: string;
   description?: string;
+  content?: string;
   file_url?: string;
   file_type?: string;
+  images?: string[];
+  category?: string;
+  effective_date?: string;
   version: string;
   status: 'Active' | 'Draft' | 'Archived';
   created_at: string;
@@ -17,6 +21,49 @@ interface Response<T> {
   success: boolean;
   data?: T;
   error?: string;
+}
+
+// Upload image to Supabase storage
+export async function uploadDocumentImage(file: File): Promise<Response<string>> {
+  try {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const filePath = `document-levels/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('documents')
+      .upload(filePath, file);
+
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage.from('documents').getPublicUrl(filePath);
+    return { success: true, data: data.publicUrl };
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Upload failed' };
+  }
+}
+
+// Upload multiple images
+export async function uploadMultipleImages(files: File[]): Promise<Response<string[]>> {
+  try {
+    const uploadPromises = files.map(file => uploadDocumentImage(file));
+    const results = await Promise.all(uploadPromises);
+
+    const urls: string[] = [];
+    for (const result of results) {
+      if (result.success && result.data) {
+        urls.push(result.data);
+      } else {
+        throw new Error(result.error || 'One or more uploads failed');
+      }
+    }
+
+    return { success: true, data: urls };
+  } catch (error) {
+    console.error('Error uploading multiple images:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Upload failed' };
+  }
 }
 
 // Load all documents for a specific level

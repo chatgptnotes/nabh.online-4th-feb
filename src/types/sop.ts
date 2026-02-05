@@ -24,6 +24,11 @@ export interface SOPDocument {
   created_at: string;
   updated_at: string;
   created_by?: string;
+  // PDF attachment fields
+  pdf_url?: string;
+  pdf_filename?: string;
+  pdf_urls?: string[];
+  pdf_filenames?: string[];
 }
 
 export interface SOPMetadata {

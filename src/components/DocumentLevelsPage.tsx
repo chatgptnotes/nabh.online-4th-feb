@@ -30,7 +30,8 @@ import {
   loadDocumentsByLevel,
   saveDocument,
   updateDocument,
-  deleteDocument
+  deleteDocument,
+  uploadMultipleImages
 } from '../services/documentLevelStorage';
 
 interface TabPanelProps {
@@ -92,13 +93,19 @@ const DOCUMENT_LEVELS = [
   },
 ];
 
+const CATEGORIES = ['Procedure', 'Policy', 'Guideline', 'Protocol', 'Manual', 'SOP'];
+
 const INITIAL_FORM_DATA = {
   title: '',
   description: '',
+  content: '',
   file_url: '',
   file_type: '',
+  category: 'Procedure',
+  effective_date: '',
   version: '1.0',
   status: 'Active' as const,
+  images: [] as string[],
 };
 
 export default function DocumentLevelsPage() {
@@ -130,6 +137,11 @@ export default function DocumentLevelsPage() {
   // Pagination state
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  // Image upload state
+  const [pendingImages, setPendingImages] = useState<File[]>([]);
+  const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (levelParam) {
@@ -175,22 +187,64 @@ export default function DocumentLevelsPage() {
     setPage(0);
   };
 
-  const handleAdd = () => {
-    setFormData(INITIAL_FORM_DATA);
-    setAddDialogOpen(true);
-  };
-
   const handleEdit = (doc: DocumentLevelItem) => {
     setSelectedDocument(doc);
     setFormData({
       title: doc.title,
       description: doc.description || '',
+      content: doc.content || '',
       file_url: doc.file_url || '',
       file_type: doc.file_type || '',
+      category: doc.category || 'Procedure',
+      effective_date: doc.effective_date || '',
       version: doc.version,
       status: doc.status,
+      images: doc.images || [],
     });
+    setImagePreviewUrls(doc.images || []);
+    setPendingImages([]);
     setEditDialogOpen(true);
+  };
+
+  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+
+    const newFiles = Array.from(files);
+    setPendingImages(prev => [...prev, ...newFiles]);
+
+    // Create preview URLs
+    newFiles.forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreviewUrls(prev => [...prev, reader.result as string]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleRemoveImage = (index: number) => {
+    // Check if it's an existing uploaded image or a pending image
+    if (index < formData.images.length) {
+      // It's an existing image URL
+      setFormData(prev => ({
+        ...prev,
+        images: prev.images.filter((_, i) => i !== index)
+      }));
+      setImagePreviewUrls(prev => prev.filter((_, i) => i !== index));
+    } else {
+      // It's a pending image
+      const pendingIndex = index - formData.images.length;
+      setPendingImages(prev => prev.filter((_, i) => i !== pendingIndex));
+      setImagePreviewUrls(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleAdd = () => {
+    setFormData(INITIAL_FORM_DATA);
+    setPendingImages([]);
+    setImagePreviewUrls([]);
+    setAddDialogOpen(true);
   };
 
   const handleView = (doc: DocumentLevelItem) => {
@@ -251,23 +305,48 @@ export default function DocumentLevelsPage() {
       return;
     }
 
-    const currentLevel = tabValue + 1;
-    const result = await saveDocument({
-      level: currentLevel,
-      title: formData.title,
-      description: formData.description,
-      file_url: formData.file_url,
-      file_type: formData.file_type,
-      version: formData.version,
-      status: formData.status,
-    });
+    setIsUploading(true);
 
-    if (result.success) {
-      showSnackbar('Document added successfully', 'success');
-      setAddDialogOpen(false);
-      loadDocuments();
-    } else {
-      showSnackbar(result.error || 'Failed to add document', 'error');
+    try {
+      // Upload pending images first
+      let uploadedImageUrls: string[] = [...formData.images];
+      if (pendingImages.length > 0) {
+        const uploadResult = await uploadMultipleImages(pendingImages);
+        if (uploadResult.success && uploadResult.data) {
+          uploadedImageUrls = [...uploadedImageUrls, ...uploadResult.data];
+        } else {
+          throw new Error(uploadResult.error || 'Failed to upload images');
+        }
+      }
+
+      const currentLevel = tabValue + 1;
+      const result = await saveDocument({
+        level: currentLevel,
+        title: formData.title,
+        description: formData.description,
+        content: formData.content,
+        file_url: formData.file_url,
+        file_type: formData.file_type,
+        category: formData.category,
+        effective_date: formData.effective_date,
+        version: formData.version,
+        status: formData.status,
+        images: uploadedImageUrls,
+      });
+
+      if (result.success) {
+        showSnackbar('Document added successfully', 'success');
+        setAddDialogOpen(false);
+        setPendingImages([]);
+        setImagePreviewUrls([]);
+        loadDocuments();
+      } else {
+        showSnackbar(result.error || 'Failed to add document', 'error');
+      }
+    } catch (error) {
+      showSnackbar(error instanceof Error ? error.message : 'Failed to save document', 'error');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -278,22 +357,47 @@ export default function DocumentLevelsPage() {
       return;
     }
 
-    const result = await updateDocument(selectedDocument.id, {
-      title: formData.title,
-      description: formData.description,
-      file_url: formData.file_url,
-      file_type: formData.file_type,
-      version: formData.version,
-      status: formData.status,
-    });
+    setIsUploading(true);
 
-    if (result.success) {
-      showSnackbar('Document updated successfully', 'success');
-      setEditDialogOpen(false);
-      setSelectedDocument(null);
-      loadDocuments();
-    } else {
-      showSnackbar(result.error || 'Failed to update document', 'error');
+    try {
+      // Upload pending images first
+      let uploadedImageUrls: string[] = [...formData.images];
+      if (pendingImages.length > 0) {
+        const uploadResult = await uploadMultipleImages(pendingImages);
+        if (uploadResult.success && uploadResult.data) {
+          uploadedImageUrls = [...uploadedImageUrls, ...uploadResult.data];
+        } else {
+          throw new Error(uploadResult.error || 'Failed to upload images');
+        }
+      }
+
+      const result = await updateDocument(selectedDocument.id, {
+        title: formData.title,
+        description: formData.description,
+        content: formData.content,
+        file_url: formData.file_url,
+        file_type: formData.file_type,
+        category: formData.category,
+        effective_date: formData.effective_date,
+        version: formData.version,
+        status: formData.status,
+        images: uploadedImageUrls,
+      });
+
+      if (result.success) {
+        showSnackbar('Document updated successfully', 'success');
+        setEditDialogOpen(false);
+        setSelectedDocument(null);
+        setPendingImages([]);
+        setImagePreviewUrls([]);
+        loadDocuments();
+      } else {
+        showSnackbar(result.error || 'Failed to update document', 'error');
+      }
+    } catch (error) {
+      showSnackbar(error instanceof Error ? error.message : 'Failed to update document', 'error');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -395,6 +499,73 @@ export default function DocumentLevelsPage() {
                   Add Document
                 </Button>
               </Box>
+
+              {/* Mission & Vision Section for Level 1 */}
+              {level.level === 1 && (
+                <Paper
+                  elevation={0}
+                  sx={{
+                    mb: 4,
+                    p: 4,
+                    bgcolor: '#fafafa',
+                    borderRadius: 3,
+                  }}
+                >
+                  <Box sx={{ display: 'flex', gap: 4, flexWrap: { xs: 'wrap', md: 'nowrap' } }}>
+                    {/* Mission */}
+                    <Box sx={{ flex: 1, minWidth: 280 }}>
+                      <Typography
+                        variant="h5"
+                        sx={{
+                          fontWeight: 800,
+                          color: '#8B1538',
+                          mb: 2,
+                          letterSpacing: 2,
+                          textTransform: 'uppercase',
+                        }}
+                      >
+                        MISSION
+                      </Typography>
+                      <Typography
+                        variant="body1"
+                        sx={{
+                          color: '#666',
+                          lineHeight: 1.8,
+                          fontSize: '1.05rem',
+                        }}
+                      >
+                        Hope Hospitals, the service provider of a global healthcare system providing patient focused, high quality and cost-effective services.
+                      </Typography>
+                    </Box>
+
+                    {/* Vision */}
+                    <Box sx={{ flex: 1, minWidth: 280 }}>
+                      <Typography
+                        variant="h5"
+                        sx={{
+                          fontWeight: 800,
+                          color: '#8B1538',
+                          mb: 2,
+                          letterSpacing: 2,
+                          textTransform: 'uppercase',
+                        }}
+                      >
+                        VISION
+                      </Typography>
+                      <Typography
+                        variant="body1"
+                        sx={{
+                          color: '#666',
+                          lineHeight: 1.8,
+                          fontSize: '1.05rem',
+                        }}
+                      >
+                        Hope Hospitals to lead the way as an International health care service provider in India.
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Paper>
+              )}
 
               {/* Documents Table */}
               {isLoading ? (
@@ -503,7 +674,7 @@ export default function DocumentLevelsPage() {
       </Paper>
 
       {/* Add Document Dialog */}
-      <Dialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={addDialogOpen} onClose={() => !isUploading && setAddDialogOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle sx={{ bgcolor: currentLevel.color, color: 'white' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Icon>{currentLevel.icon}</Icon>
@@ -523,48 +694,153 @@ export default function DocumentLevelsPage() {
             label="Description"
             fullWidth
             multiline
-            rows={3}
+            rows={2}
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             sx={{ mb: 2 }}
           />
-          <TextField
-            label="File URL (Google Drive, etc.)"
-            fullWidth
-            value={formData.file_url}
-            onChange={(e) => setFormData({ ...formData, file_url: e.target.value })}
-            sx={{ mb: 2 }}
-          />
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <TextField
+              select
+              label="Category"
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              sx={{ width: 180 }}
+            >
+              {CATEGORIES.map((cat) => (
+                <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+              ))}
+            </TextField>
             <TextField
               label="Version"
               value={formData.version}
               onChange={(e) => setFormData({ ...formData, version: e.target.value })}
               sx={{ width: 120 }}
             />
+          </Box>
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
             <TextField
               select
               label="Status"
               value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value as 'Active' | 'Draft' | 'Archived' })}
               sx={{ width: 150 }}
             >
               <MenuItem value="Active">Active</MenuItem>
               <MenuItem value="Draft">Draft</MenuItem>
               <MenuItem value="Archived">Archived</MenuItem>
             </TextField>
+            <TextField
+              label="Effective Date"
+              type="date"
+              value={formData.effective_date}
+              onChange={(e) => setFormData({ ...formData, effective_date: e.target.value })}
+              InputLabelProps={{ shrink: true }}
+              sx={{ width: 180 }}
+            />
           </Box>
+          <TextField
+            label="Content"
+            fullWidth
+            required
+            multiline
+            rows={6}
+            value={formData.content}
+            onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+            sx={{ mb: 2 }}
+          />
+
+          {/* Multi-Image Upload Section */}
+          <Paper
+            variant="outlined"
+            sx={{
+              p: 2,
+              bgcolor: 'grey.50',
+              borderRadius: 2,
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+              <Icon sx={{ color: '#D32F2F' }}>image</Icon>
+              <Typography fontWeight={600}>Attach Images</Typography>
+            </Box>
+            <Button
+              variant="outlined"
+              component="label"
+              startIcon={<Icon>cloud_upload</Icon>}
+              disabled={isUploading}
+            >
+              Upload Images
+              <input
+                type="file"
+                hidden
+                multiple
+                accept="image/*"
+                onChange={handleImageSelect}
+              />
+            </Button>
+            <Typography variant="caption" color="text.secondary" sx={{ ml: 2 }}>
+              Max file size: 10MB per file. You can upload multiple images.
+            </Typography>
+
+            {/* Image Previews */}
+            {imagePreviewUrls.length > 0 && (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 2 }}>
+                {imagePreviewUrls.map((url, index) => (
+                  <Box
+                    key={index}
+                    sx={{
+                      position: 'relative',
+                      width: 100,
+                      height: 100,
+                      borderRadius: 1,
+                      overflow: 'hidden',
+                      border: '1px solid #ddd',
+                    }}
+                  >
+                    <img
+                      src={url}
+                      alt={`Preview ${index + 1}`}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                      }}
+                    />
+                    <IconButton
+                      size="small"
+                      onClick={() => handleRemoveImage(index)}
+                      sx={{
+                        position: 'absolute',
+                        top: 2,
+                        right: 2,
+                        bgcolor: 'rgba(255,255,255,0.9)',
+                        '&:hover': { bgcolor: 'rgba(255,255,255,1)' },
+                      }}
+                    >
+                      <Icon sx={{ fontSize: 16 }}>close</Icon>
+                    </IconButton>
+                  </Box>
+                ))}
+              </Box>
+            )}
+          </Paper>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setAddDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleSave} sx={{ bgcolor: currentLevel.color }}>
-            Add Document
+          <Button onClick={() => setAddDialogOpen(false)} disabled={isUploading}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleSave}
+            disabled={isUploading}
+            sx={{ bgcolor: currentLevel.color }}
+            startIcon={isUploading ? <CircularProgress size={20} color="inherit" /> : null}
+          >
+            {isUploading ? 'Saving...' : 'Save'}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Edit Document Dialog */}
-      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={editDialogOpen} onClose={() => !isUploading && setEditDialogOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle sx={{ bgcolor: currentLevel.color, color: 'white' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Icon>edit</Icon>
@@ -584,42 +860,147 @@ export default function DocumentLevelsPage() {
             label="Description"
             fullWidth
             multiline
-            rows={3}
+            rows={2}
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             sx={{ mb: 2 }}
           />
-          <TextField
-            label="File URL (Google Drive, etc.)"
-            fullWidth
-            value={formData.file_url}
-            onChange={(e) => setFormData({ ...formData, file_url: e.target.value })}
-            sx={{ mb: 2 }}
-          />
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <TextField
+              select
+              label="Category"
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              sx={{ width: 180 }}
+            >
+              {CATEGORIES.map((cat) => (
+                <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+              ))}
+            </TextField>
             <TextField
               label="Version"
               value={formData.version}
               onChange={(e) => setFormData({ ...formData, version: e.target.value })}
               sx={{ width: 120 }}
             />
+          </Box>
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
             <TextField
               select
               label="Status"
               value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value as 'Active' | 'Draft' | 'Archived' })}
               sx={{ width: 150 }}
             >
               <MenuItem value="Active">Active</MenuItem>
               <MenuItem value="Draft">Draft</MenuItem>
               <MenuItem value="Archived">Archived</MenuItem>
             </TextField>
+            <TextField
+              label="Effective Date"
+              type="date"
+              value={formData.effective_date}
+              onChange={(e) => setFormData({ ...formData, effective_date: e.target.value })}
+              InputLabelProps={{ shrink: true }}
+              sx={{ width: 180 }}
+            />
           </Box>
+          <TextField
+            label="Content"
+            fullWidth
+            required
+            multiline
+            rows={6}
+            value={formData.content}
+            onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+            sx={{ mb: 2 }}
+          />
+
+          {/* Multi-Image Upload Section */}
+          <Paper
+            variant="outlined"
+            sx={{
+              p: 2,
+              bgcolor: 'grey.50',
+              borderRadius: 2,
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+              <Icon sx={{ color: '#D32F2F' }}>image</Icon>
+              <Typography fontWeight={600}>Attach Images</Typography>
+            </Box>
+            <Button
+              variant="outlined"
+              component="label"
+              startIcon={<Icon>cloud_upload</Icon>}
+              disabled={isUploading}
+            >
+              Upload Images
+              <input
+                type="file"
+                hidden
+                multiple
+                accept="image/*"
+                onChange={handleImageSelect}
+              />
+            </Button>
+            <Typography variant="caption" color="text.secondary" sx={{ ml: 2 }}>
+              Max file size: 10MB per file. You can upload multiple images.
+            </Typography>
+
+            {/* Image Previews */}
+            {imagePreviewUrls.length > 0 && (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 2 }}>
+                {imagePreviewUrls.map((url, index) => (
+                  <Box
+                    key={index}
+                    sx={{
+                      position: 'relative',
+                      width: 100,
+                      height: 100,
+                      borderRadius: 1,
+                      overflow: 'hidden',
+                      border: '1px solid #ddd',
+                    }}
+                  >
+                    <img
+                      src={url}
+                      alt={`Preview ${index + 1}`}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                      }}
+                    />
+                    <IconButton
+                      size="small"
+                      onClick={() => handleRemoveImage(index)}
+                      sx={{
+                        position: 'absolute',
+                        top: 2,
+                        right: 2,
+                        bgcolor: 'rgba(255,255,255,0.9)',
+                        '&:hover': { bgcolor: 'rgba(255,255,255,1)' },
+                      }}
+                    >
+                      <Icon sx={{ fontSize: 16 }}>close</Icon>
+                    </IconButton>
+                  </Box>
+                ))}
+              </Box>
+            )}
+          </Paper>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleUpdate} sx={{ bgcolor: currentLevel.color }}>
-            Save Changes
+          <Button onClick={() => setEditDialogOpen(false)} disabled={isUploading}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleUpdate}
+            disabled={isUploading}
+            sx={{ bgcolor: currentLevel.color }}
+            startIcon={isUploading ? <CircularProgress size={20} color="inherit" /> : null}
+          >
+            {isUploading ? 'Saving...' : 'Save Changes'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -651,11 +1032,57 @@ export default function DocumentLevelsPage() {
               <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                 Version: {viewDocument.version}
               </Typography>
-              <Paper sx={{ p: 3, bgcolor: 'grey.50', borderRadius: 2 }}>
-                <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.8 }}>
-                  {viewDocument.description || 'No description available.'}
-                </Typography>
-              </Paper>
+              {viewDocument.description && (
+                <Paper sx={{ p: 3, bgcolor: 'grey.50', borderRadius: 2, mb: 2 }}>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>Description</Typography>
+                  <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.8 }}>
+                    {viewDocument.description}
+                  </Typography>
+                </Paper>
+              )}
+              {viewDocument.content && (
+                <Paper sx={{ p: 3, bgcolor: 'grey.50', borderRadius: 2, mb: 2 }}>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>Content</Typography>
+                  <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.8 }}>
+                    {viewDocument.content}
+                  </Typography>
+                </Paper>
+              )}
+              {viewDocument.images && viewDocument.images.length > 0 && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>Attached Images</Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                    {viewDocument.images.map((url, index) => (
+                      <Box
+                        key={index}
+                        component="a"
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{
+                          width: 150,
+                          height: 150,
+                          borderRadius: 2,
+                          overflow: 'hidden',
+                          border: '1px solid #ddd',
+                          cursor: 'pointer',
+                          '&:hover': { opacity: 0.9 }
+                        }}
+                      >
+                        <img
+                          src={url}
+                          alt={`Image ${index + 1}`}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                          }}
+                        />
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              )}
               {viewDocument.file_url && (
                 <Box sx={{ mt: 2 }}>
                   <Button
