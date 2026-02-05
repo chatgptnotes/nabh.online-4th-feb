@@ -109,6 +109,19 @@ export default function RecentSOPsPage() {
       if (result.success && result.data && result.data.length > 0) {
         setSOPPrompts(result.data);
         setFilterPrompt(result.data[0].prompt);
+        
+        // Set default selection for Final Prompt dropdown
+        // Find the first prompt with "SOP Generation" or similar in the title, or use the first one
+        const defaultPrompt = result.data.find(p => 
+          p.title?.toLowerCase().includes('sop generation') || 
+          p.title?.toLowerCase().includes('generation') ||
+          p.title?.toLowerCase().includes('instructions')
+        ) || result.data[0];
+        
+        if (defaultPrompt) {
+          setSelectedPromptId(defaultPrompt.id);
+          setFinalPrompt(defaultPrompt.prompt);
+        }
       }
     };
     fetchPrompts();
@@ -908,7 +921,14 @@ export default function RecentSOPsPage() {
         {/* Final Prompt */}
         <Paper elevation={1} sx={{ border: '1px solid #ccc', borderRadius: 1 }}>
           <Box sx={{ p: 1, borderBottom: '1px solid #ccc', bgcolor: '#fff8e1', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="subtitle2" fontWeight="bold">Final Prompt: SOP Generation Instructions</Typography>
+            <Box>
+              <Typography variant="subtitle2" fontWeight="bold">Final Prompt: SOP Generation Instructions</Typography>
+              {selectedPromptId && (
+                <Typography variant="caption" color="success.main" sx={{ display: 'block', fontSize: '0.75rem' }}>
+                  ✅ Default prompt auto-applied
+                </Typography>
+              )}
+            </Box>
             <FormControl size="small" sx={{ minWidth: 200 }}>
               <Select
                 value={selectedPromptId}
@@ -916,7 +936,7 @@ export default function RecentSOPsPage() {
                 displayEmpty
                 sx={{ fontSize: '0.8rem', bgcolor: '#fff' }}
               >
-                <MenuItem value="">-- Select Prompt --</MenuItem>
+                <MenuItem value="" disabled>-- Select Prompt --</MenuItem>
                 {sopPrompts.map((p) => (
                   <MenuItem key={p.id} value={p.id}>{p.title}</MenuItem>
                 ))}
