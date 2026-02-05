@@ -21,10 +21,12 @@ import {
   Download as DownloadIcon,
   FilterAlt as FilterIcon,
   MergeType as MergeIcon,
+  Edit as EditIcon,
 } from '@mui/icons-material';
 import { loadSOPsByChapter } from '../services/sopStorage';
 import { extractTextFromPDFUrl, generateSOPFromContent, filterRelevantContent } from '../services/documentExtractor';
 import { loadObjectiveEditsByChapter } from '../services/objectiveStorage';
+import { loadAllSOPPrompts } from '../services/sopPromptStorage';
 import { supabase } from '../lib/supabase';
 
 export default function RecentSOPsPage() {
@@ -65,6 +67,10 @@ export default function RecentSOPsPage() {
   const [generatingSOP, setGeneratingSOP] = useState(false);
   const [generatingPDF, setGeneratingPDF] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isEditingFinalSOP, setIsEditingFinalSOP] = useState(false);
+  const [isTextEditing, setIsTextEditing] = useState(false);
+  const [sopPrompts, setSOPPrompts] = useState<any[]>([]);
+  const [selectedPromptId, setSelectedPromptId] = useState<string>('');
 
   const showSnackbar = (message: string, severity: 'success' | 'error') => {
     setSnackbar({ open: true, message, severity });
@@ -74,6 +80,27 @@ export default function RecentSOPsPage() {
   useEffect(() => {
     fetchChapters();
   }, []);
+
+  // Load AI Filter Prompt and SOP Prompts from database on mount
+  useEffect(() => {
+    const fetchPrompts = async () => {
+      const result = await loadAllSOPPrompts();
+      if (result.success && result.data && result.data.length > 0) {
+        setSOPPrompts(result.data);
+        setFilterPrompt(result.data[0].prompt);
+      }
+    };
+    fetchPrompts();
+  }, []);
+
+  // Handle prompt selection for Final Prompt
+  const handlePromptSelect = (promptId: string) => {
+    setSelectedPromptId(promptId);
+    const selected = sopPrompts.find(p => p.id === promptId);
+    if (selected) {
+      setFinalPrompt(selected.prompt);
+    }
+  };
 
   const fetchChapters = async () => {
     const { data, error } = await supabase
@@ -329,7 +356,7 @@ export default function RecentSOPsPage() {
       document.body.appendChild(container);
 
       await html2pdf().set({
-        margin: [10, 10, 10, 10],
+        margin: [2, 10, 10, 10],
         filename: `SOP-${selectedChapterCode}-${selectedObjective || 'General'}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true },
@@ -598,8 +625,21 @@ export default function RecentSOPsPage() {
 
         {/* Final Prompt */}
         <Paper elevation={1} sx={{ border: '1px solid #ccc', borderRadius: 1 }}>
-          <Box sx={{ p: 1, borderBottom: '1px solid #ccc', bgcolor: '#fff8e1' }}>
+          <Box sx={{ p: 1, borderBottom: '1px solid #ccc', bgcolor: '#fff8e1', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Typography variant="subtitle2" fontWeight="bold">Final Prompt: SOP Generation Instructions</Typography>
+            <FormControl size="small" sx={{ minWidth: 200 }}>
+              <Select
+                value={selectedPromptId}
+                onChange={(e) => handlePromptSelect(e.target.value)}
+                displayEmpty
+                sx={{ fontSize: '0.8rem', bgcolor: '#fff' }}
+              >
+                <MenuItem value="">-- Select Prompt --</MenuItem>
+                {sopPrompts.map((p) => (
+                  <MenuItem key={p.id} value={p.id}>{p.title}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </Box>
           <Box sx={{ p: 1 }}>
             <textarea
@@ -647,6 +687,27 @@ export default function RecentSOPsPage() {
               >
                 PDF
               </Button>
+              <Button
+                size="small"
+                variant="contained"
+                color={isTextEditing ? "warning" : "secondary"}
+                startIcon={<EditIcon />}
+                onClick={() => { setIsTextEditing(!isTextEditing); setIsEditingFinalSOP(false); }}
+                disabled={!finalSOP}
+                sx={{ fontSize: '0.75rem' }}
+              >
+                {isTextEditing ? 'Done' : 'Text Edit'}
+              </Button>
+              <Button
+                size="small"
+                variant="contained"
+                color={isEditingFinalSOP ? "warning" : "info"}
+                onClick={() => { setIsEditingFinalSOP(!isEditingFinalSOP); setIsTextEditing(false); }}
+                disabled={!finalSOP}
+                sx={{ fontSize: '0.75rem' }}
+              >
+                {isEditingFinalSOP ? 'Preview' : 'Code'}
+              </Button>
               <IconButton size="small" onClick={() => handleCopy(finalSOP, 'Final SOP')} disabled={!finalSOP}>
                 <CopyIcon fontSize="small" />
               </IconButton>
@@ -655,23 +716,56 @@ export default function RecentSOPsPage() {
           {/* Rendered SOP Document Preview */}
           <Box sx={{ bgcolor: '#fff', minHeight: '500px' }}>
             {finalSOP ? (
-              <Box
-                sx={{
-                  '& iframe': {
+              isTextEditing ? (
+                <Box
+                  contentEditable
+                  suppressContentEditableWarning
+                  dangerouslySetInnerHTML={{ __html: finalSOP }}
+                  onBlur={(e) => setFinalSOP(e.currentTarget.innerHTML)}
+                  sx={{
                     width: '100%',
                     minHeight: '500px',
-                    border: 'none',
-                    backgroundColor: 'white',
-                  },
-                }}
-              >
-                <iframe
-                  srcDoc={finalSOP}
-                  title="SOP Preview"
-                  sandbox="allow-same-origin allow-popups"
-                  style={{ display: 'block' }}
+                    p: 2,
+                    outline: '2px solid #1976d2',
+                    bgcolor: '#fff',
+                    overflow: 'auto',
+                    '& *': { outline: 'none', maxWidth: '100% !important' },
+                  }}
                 />
-              </Box>
+              ) : isEditingFinalSOP ? (
+                <textarea
+                  value={finalSOP}
+                  onChange={(e) => setFinalSOP(e.target.value)}
+                  style={{
+                    width: '100%',
+                    minHeight: '500px',
+                    fontFamily: 'monospace',
+                    fontSize: '12px',
+                    padding: '10px',
+                    border: 'none',
+                    resize: 'vertical',
+                    outline: 'none',
+                  }}
+                />
+              ) : (
+                <Box
+                  sx={{
+                    '& iframe': {
+                      width: '100%',
+                      minHeight: '500px',
+                      border: 'none',
+                      backgroundColor: 'white',
+                    },
+                  }}
+                >
+                  <iframe
+                    srcDoc={finalSOP}
+                    title="SOP Preview"
+                    sandbox="allow-same-origin allow-popups"
+                    style={{ display: 'block' }}
+                  />
+                </Box>
+              )
             ) : (
               <Box sx={{ p: 3, textAlign: 'center', color: '#999' }}>
                 <Typography variant="body2">
