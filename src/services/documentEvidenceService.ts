@@ -61,6 +61,23 @@ export const getFileType = (file: File): DocumentFileType | null => {
 };
 
 /**
+ * Get MIME type from file extension (for when Google Drive returns octet-stream)
+ */
+const getMimeTypeFromExtension = (fileType: DocumentFileType): string => {
+  const mimeTypes: Record<DocumentFileType, string> = {
+    'pdf': 'application/pdf',
+    'doc': 'application/msword',
+    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'png': 'image/png',
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'xls': 'application/vnd.ms-excel',
+    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  };
+  return mimeTypes[fileType] || 'application/octet-stream';
+};
+
+/**
  * Extract text from image/PDF/DOC using Gemini Vision API
  */
 export const extractWithGeminiVision = async (
@@ -448,8 +465,17 @@ export const extractFromGoogleDrive = async (url: string): Promise<DocumentExtra
   try {
     const { data, mimeType, filename } = await fetchGoogleDriveFile(documentId);
 
-    // Determine file type from MIME type
-    const fileType = mimeTypeToFileType(mimeType);
+    // Determine file type from MIME type, fallback to filename extension
+    let fileType = mimeTypeToFileType(mimeType);
+
+    // If MIME type is generic (octet-stream), detect from filename extension
+    if (!fileType && filename) {
+      const extension = filename.split('.').pop()?.toLowerCase();
+      const validTypes: DocumentFileType[] = ['pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg', 'xlsx', 'xls'];
+      if (extension && validTypes.includes(extension as DocumentFileType)) {
+        fileType = extension as DocumentFileType;
+      }
+    }
 
     if (!fileType) {
       throw new Error(
@@ -457,8 +483,13 @@ export const extractFromGoogleDrive = async (url: string): Promise<DocumentExtra
       );
     }
 
+    // Get correct MIME type based on detected file type (in case original was octet-stream)
+    const correctMimeType = mimeType === 'application/octet-stream'
+      ? getMimeTypeFromExtension(fileType)
+      : mimeType;
+
     // Convert base64 to File object
-    const file = base64ToFile(data, filename, mimeType);
+    const file = base64ToFile(data, filename, correctMimeType);
 
     // Route to appropriate extraction function based on file type
     if (fileType === 'xlsx' || fileType === 'xls') {
