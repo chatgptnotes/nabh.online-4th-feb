@@ -36,7 +36,6 @@ const NABH_CHAPTERS = [
   { code: 'MOM', name: 'Management of Medication', color: '#7B1FA2' },
   { code: 'PRE', name: 'Patient Rights and Education', color: '#C62828' },
   { code: 'HIC', name: 'Hospital Infection Control', color: '#00838F' },
-  { code: 'CQI', name: 'Continuous Quality Improvement', color: '#EF6C00' },
   { code: 'ROM', name: 'Responsibilities of Management', color: '#5D4037' },
   { code: 'FMS', name: 'Facility Management and Safety', color: '#455A64' },
   { code: 'HRM', name: 'Human Resource Management', color: '#AD1457' },
