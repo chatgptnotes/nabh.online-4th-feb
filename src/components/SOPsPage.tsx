@@ -81,6 +81,27 @@ const SOP_CATEGORIES = [
   'Other',
 ];
 
+// Natural sort for SOP titles like "AAC-5", "AAC-11", "COP-2"
+// Ensures AAC-5 comes before AAC-11 (numeric sorting, not string)
+function naturalSortSOPTitle(a: string, b: string): number {
+  // Extract chapter prefix and number (e.g., "AAC-11" -> ["AAC", "11"])
+  const regex = /^([A-Z]+)-?(\d+)$/i;
+  const matchA = a.match(regex);
+  const matchB = b.match(regex);
+
+  if (matchA && matchB) {
+    // Compare chapter prefix first
+    const prefixCompare = matchA[1].localeCompare(matchB[1]);
+    if (prefixCompare !== 0) return prefixCompare;
+
+    // Then compare numbers numerically
+    return parseInt(matchA[2], 10) - parseInt(matchB[2], 10);
+  }
+
+  // Fallback to string comparison
+  return a.localeCompare(b);
+}
+
 export default function SOPsPage() {
   const navigate = useNavigate();
   const [sops, setSOPs] = useState<SOPDocument[]>([]);
@@ -175,6 +196,9 @@ export default function SOPsPage() {
           sop.category?.toLowerCase().includes(query)
       );
     }
+
+    // Sort by natural order (AAC-5 before AAC-11)
+    filtered.sort((a, b) => naturalSortSOPTitle(a.title, b.title));
 
     setFilteredSOPs(filtered);
   };
