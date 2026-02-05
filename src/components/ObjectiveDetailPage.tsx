@@ -846,11 +846,6 @@ export default function ObjectiveDetailPage() {
     setYoutubeSearchResults([]);
     
     try {
-      const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!geminiApiKey) {
-        throw new Error('Gemini API key not configured');
-      }
-      
       // Get chapter context
       const chapterCode = objective.code.split('.')[0];
       const chapterNames: Record<string, string> = {
@@ -893,21 +888,7 @@ Focus on:
 
 Prefer Indian healthcare context videos. Return ONLY valid JSON array.`;
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
-          }),
-        }
-      );
-      
-      if (!response.ok) throw new Error('Failed to get video suggestions');
-      
-      const data = await response.json();
+      const data = await callGeminiAPI(prompt, 0.7, 2048);
       const rawContent = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
       
       // Parse JSON from response

@@ -37,7 +37,7 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import { useNABHStore } from '../store/nabhStore';
 import { getHospitalInfo, getNABHCoordinator, NABH_ASSESSOR_PROMPT } from '../config/hospitalConfig';
-import { getClaudeApiKey, getGeminiApiKey } from '../lib/supabase';
+import { getClaudeApiKey, callGeminiAPI } from '../lib/supabase';
 import {
   generateInfographic,
   svgToDataUrl,
@@ -622,50 +622,13 @@ function updateHTMLWithText(
 </html>`;
 }
 
-// Gemini API call for text generation
+// Gemini API call for text generation using secure backend proxy
 async function callGeminiText(apiKey: string, prompt: string, userMessage: string): Promise<string> {
-  if (!apiKey || apiKey.trim() === '') {
-    throw new Error('Gemini API key is not configured.');
-  }
-
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: `${prompt}\n\n${userMessage}`,
-                },
-              ],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 8192,
-          },
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error?.message || `Gemini API request failed with status ${response.status}`);
-    }
-
-    const data = await response.json();
+    const data = await callGeminiAPI(`${prompt}\n\n${userMessage}`, 0.7, 8192);
     return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  } catch (err) {
-    if (err instanceof TypeError && err.message.includes('fetch')) {
-      throw new Error('Network error: Unable to connect to Gemini API.');
-    }
-    throw err;
+  } catch (err: any) {
+    throw new Error(err.message || 'Failed to generate content');
   }
 }
 

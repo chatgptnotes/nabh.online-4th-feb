@@ -25,7 +25,7 @@ import StepLabel from '@mui/material/StepLabel';
 import LinearProgress from '@mui/material/LinearProgress';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
-import { getGeminiApiKey } from '../lib/supabase';
+import { callGeminiAPI } from '../lib/supabase';
 import { getHospitalInfo } from '../config/hospitalConfig';
 import { extractFromDocument, generateImprovedDocument } from '../services/documentExtractor';
 import { useNABHStore } from '../store/nabhStore';
@@ -125,9 +125,6 @@ export default function SlideDeckPage() {
   }, [presentations]);
 
   const generateSlideContent = async (title: string, section: string, hospitalInfo: typeof hospitalConfig) => {
-    const geminiApiKey = getGeminiApiKey();
-    if (!geminiApiKey) return '';
-
     const prompt = `Generate professional slide content for a hospital NABH assessment presentation.
 
 Presentation: ${title}
@@ -145,19 +142,7 @@ Format as clean text with bullet points using - symbol.
 Do not include any HTML tags.`;
 
     try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
-          }),
-        }
-      );
-
-      const data = await response.json();
+      const data = await callGeminiAPI(prompt, 0.7, 1024);
       return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     } catch (error) {
       console.error('Error generating slide content:', error);

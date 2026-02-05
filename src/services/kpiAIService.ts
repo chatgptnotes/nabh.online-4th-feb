@@ -1,7 +1,7 @@
 // KPI AI Service for graph editing
 // Uses Gemini API to interpret user prompts and modify KPI data
 
-import { getGeminiApiKey } from '../lib/supabase';
+import { callGeminiAPI } from '../lib/supabase';
 import type { KPIDefinition } from '../data/kpiData';
 
 interface KPIDataEntry {
@@ -28,51 +28,11 @@ export async function processKPIEditPrompt(
   currentData: KPIDataEntry[],
   kpi: KPIDefinition
 ): Promise<AIModificationResult> {
-  const apiKey = getGeminiApiKey();
-
-  if (!apiKey) {
-    return {
-      success: false,
-      error: 'Gemini API key not configured. Please add VITE_GEMINI_API_KEY to your environment variables.',
-    };
-  }
-
   const systemPrompt = buildSystemPrompt(kpi, currentData);
   const userMessage = prompt;
 
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: `${systemPrompt}\n\nUser Request: ${userMessage}` }],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.2,
-            maxOutputTokens: 4096,
-          },
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Gemini API error:', errorText);
-      return {
-        success: false,
-        error: `API Error: ${response.status} - ${errorText}`,
-      };
-    }
-
-    const data = await response.json();
+    const data = await callGeminiAPI(`${systemPrompt}\n\nUser Request: ${userMessage}`, 0.2, 4096);
     const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!content) {

@@ -4,7 +4,7 @@
  */
 
 import * as XLSX from 'xlsx';
-import { getGeminiApiKey } from '../lib/supabase';
+import { callGeminiAPI, callGeminiVisionAPI } from '../lib/supabase';
 import { getRelevantData } from './hopeHospitalDatabase';
 import type {
   UploadedDocument,
@@ -84,11 +84,6 @@ export const extractWithGeminiVision = async (
   file: File,
   customPrompt?: string
 ): Promise<DocumentExtractedData> => {
-  const geminiApiKey = getGeminiApiKey();
-  if (!geminiApiKey) {
-    throw new Error('Gemini API key not configured');
-  }
-
   const base64 = await fileToBase64(file);
   const prompt = customPrompt || `Extract all text content from this document.
 
@@ -105,30 +100,9 @@ If you find tables, describe them with headers and rows.
 If you find form fields, list them as key-value pairs.`;
 
   const mimeType = file.type || 'application/octet-stream';
+  const imageData = { mime_type: mimeType, data: base64.split(',')[1] };
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: prompt },
-            { inline_data: { mime_type: mimeType, data: base64.split(',')[1] } }
-          ]
-        }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 8192 },
-      }),
-    }
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
-  }
-
-  const data = await response.json();
+  const data = await callGeminiVisionAPI(prompt, imageData, 0.3, 8192);
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
   return parseExtractedText(text);
@@ -703,24 +677,7 @@ Use this HTML template structure:
 
 Generate the complete HTML document using the data from the uploaded documents. Fill in all sections appropriately based on the evidence requirement and the document data provided.`;
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.7, maxOutputTokens: 16384 },
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
-    }
-
-    const data = await response.json();
+    const data = await callGeminiAPI(prompt, 0.7, 16384);
     let htmlContent = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
     // Extract HTML from markdown code blocks if present
@@ -920,24 +877,7 @@ Generate a complete, print-ready HTML document using this template structure:
 
 CRITICAL: Output ONLY the complete HTML document. Preserve ALL data from the uploaded documents - format tables as proper HTML tables, key-value pairs as info tables, and text content in sections.`;
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.3, maxOutputTokens: 16384 },
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
-    }
-
-    const data = await response.json();
+    const data = await callGeminiAPI(prompt, 0.3, 16384);
     let htmlContent = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
     // Extract HTML from markdown code blocks if present

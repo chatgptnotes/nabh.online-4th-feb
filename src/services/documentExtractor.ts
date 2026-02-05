@@ -4,7 +4,7 @@
  * Uses Gemini Vision API for intelligent text extraction
  */
 
-import { getGeminiApiKey } from '../lib/supabase';
+import { callGeminiAPI, callGeminiVisionAPI } from '../lib/supabase';
 
 export interface ExtractionResult {
   success: boolean;

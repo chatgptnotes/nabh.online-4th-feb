@@ -80,3 +80,47 @@ export const callGeminiAPI = async (prompt: string, temperature = 0.7, maxOutput
 
   return directResponse.json();
 };
+
+// Call Gemini API with image support (secure backend proxy with image fallback)
+export const callGeminiVisionAPI = async (
+  prompt: string, 
+  imageData: { mime_type: string; data: string }, 
+  temperature = 0.7, 
+  maxOutputTokens = 8192
+) => {
+  // For now, use direct API call for vision capabilities
+  // TODO: Create backend endpoint that supports image data
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) {
+    throw new Error('No Gemini API key available. Set VITE_GEMINI_API_KEY in .env');
+  }
+
+  const directResponse = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: prompt },
+            { inline_data: imageData }
+          ]
+        }],
+        generationConfig: {
+          temperature,
+          maxOutputTokens,
+        },
+      }),
+    }
+  );
+
+  if (!directResponse.ok) {
+    const errorText = await directResponse.text();
+    throw new Error(`Gemini Vision API error: ${directResponse.status} - ${errorText}`);
+  }
+
+  return directResponse.json();
+};
