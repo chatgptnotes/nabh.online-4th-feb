@@ -97,15 +97,21 @@ export const extractTextFromPDF = async (
   file: File,
   prompt?: string
 ): Promise<ExtractionResult> => {
+  console.log('[extractTextFromPDF] Starting PDF extraction, file size:', file.size);
+
   const geminiApiKey = getGeminiApiKey();
   if (!geminiApiKey) {
+    console.error('[extractTextFromPDF] Gemini API key not configured');
     return { success: false, text: '', error: 'Gemini API key not configured' };
   }
+  console.log('[extractTextFromPDF] Gemini API key found');
 
   try {
     // For PDFs, we'll convert first page to image and extract
     // In a production app, you'd use a proper PDF parsing library
+    console.log('[extractTextFromPDF] Converting file to base64...');
     const base64 = await fileToBase64(file);
+    console.log('[extractTextFromPDF] Base64 length:', base64.length);
 
     const defaultPrompt = `This is a PDF document. Extract all text content, organizing it by:
 1. Document title and headers
@@ -116,6 +122,7 @@ export const extractTextFromPDF = async (
 
 Provide a comprehensive extraction of all visible text.`;
 
+    console.log('[extractTextFromPDF] Calling Gemini API...');
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
       {
@@ -133,12 +140,21 @@ Provide a comprehensive extraction of all visible text.`;
       }
     );
 
+    console.log('[extractTextFromPDF] Gemini API response status:', response.status);
     const data = await response.json();
+    console.log('[extractTextFromPDF] Gemini API response:', JSON.stringify(data).substring(0, 500));
+
+    if (data.error) {
+      console.error('[extractTextFromPDF] Gemini API error:', data.error);
+      return { success: false, text: '', error: data.error.message || 'Gemini API error' };
+    }
+
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    console.log('[extractTextFromPDF] Extracted text length:', text.length);
 
     return { success: true, text, documentType: 'pdf' };
   } catch (error) {
-    console.error('Error extracting text from PDF:', error);
+    console.error('[extractTextFromPDF] Error:', error);
     return { success: false, text: '', error: 'Failed to extract text from PDF' };
   }
 };
@@ -495,6 +511,131 @@ Only return the JSON, no other text.` }] }],
   } catch (error) {
     console.error('Error extracting KPI data:', error);
     return { kpis: [] };
+  }
+};
+
+/**
+ * Extract text from PDF using URL (fetches the PDF first)
+ */
+export const extractTextFromPDFUrl = async (
+  pdfUrl: string,
+  prompt?: string
+): Promise<ExtractionResult> => {
+  console.log('[extractTextFromPDFUrl] Starting extraction for:', pdfUrl);
+
+  try {
+    // Fetch PDF from URL
+    console.log('[extractTextFromPDFUrl] Fetching PDF...');
+    const response = await fetch(pdfUrl);
+    console.log('[extractTextFromPDFUrl] Fetch response status:', response.status);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch PDF: ${response.status} ${response.statusText}`);
+    }
+
+    const blob = await response.blob();
+    console.log('[extractTextFromPDFUrl] Blob size:', blob.size, 'type:', blob.type);
+
+    const file = new File([blob], 'document.pdf', { type: 'application/pdf' });
+    console.log('[extractTextFromPDFUrl] File created, calling extractTextFromPDF...');
+
+    // Use existing extraction function
+    const result = await extractTextFromPDF(file, prompt);
+    console.log('[extractTextFromPDFUrl] Extraction result:', result.success ? 'SUCCESS' : 'FAILED', result.error || '');
+
+    return result;
+  } catch (error) {
+    console.error('[extractTextFromPDFUrl] Error:', error);
+    return {
+      success: false,
+      text: '',
+      error: error instanceof Error ? error.message : 'Failed to extract text from PDF URL',
+    };
+  }
+};
+
+/**
+ * Generate SOP from extracted PDF content and user interpretation
+ */
+export const generateSOPFromContent = async (
+  pdfContent: string,
+  titlesInterpretation: string,
+  chapterCode: string,
+  chapterName: string,
+  customPrompt?: string
+): Promise<{ success: boolean; sop: string; error?: string }> => {
+  console.log('[generateSOPFromContent] Starting SOP generation for chapter:', chapterCode);
+
+  const geminiApiKey = getGeminiApiKey();
+  if (!geminiApiKey) {
+    console.error('[generateSOPFromContent] Gemini API key not configured');
+    return { success: false, sop: '', error: 'Gemini API key not configured' };
+  }
+
+  try {
+    const prompt = `You are a NABH Accreditation Expert. Generate a comprehensive Standard Operating Procedure (SOP) in professional HTML format.
+
+## CONTEXT
+Hospital Chapter: ${chapterCode} - ${chapterName}
+SHCO 3rd Edition Interpretation & Objective: 
+${titlesInterpretation}
+
+Historical Data / Source Content:
+${pdfContent}
+
+User Specific Instructions:
+${customPrompt || 'None'}
+
+## OUTPUT REQUIREMENTS (MANDATORY)
+1. Format: Complete HTML document with embedded CSS.
+2. Header Table: Use <table> tags for the header including (Document No, Issue Date, Rev No, Hospital Name).
+3. Section Headings: Use <h3> for sections: Purpose, Scope, Responsibility, Procedure, References, etc.
+4. Language & Tone: Professional, formal, and strictly compliant with SHCO 3rd Edition standards.
+5. Content Integration: Incorporate the interpretation and staff/historical data provided.
+6. Print Readiness: Ensure proper margins and clear tabular structures.
+
+Only return the HTML code, no introductory text.`;
+
+    console.log('[generateSOPFromContent] Calling Gemini API...');
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { 
+            temperature: 0.7, 
+            maxOutputTokens: 8192,
+            response_mime_type: "text/plain"
+          },
+        }),
+      }
+    );
+
+    console.log('[generateSOPFromContent] Gemini API response status:', response.status);
+    const data = await response.json();
+
+    if (data.error) {
+      console.error('[generateSOPFromContent] Gemini API error:', data.error);
+      return { success: false, sop: '', error: data.error.message || 'Gemini API error' };
+    }
+
+    let sop = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    
+    // Clean markdown code blocks if AI included them
+    sop = sop.replace(/```html/g, '').replace(/```/g, '').trim();
+    
+    console.log('[generateSOPFromContent] Generated SOP length:', sop.length);
+
+    return { success: true, sop };
+  } catch (error) {
+    console.error('[generateSOPFromContent] Error:', error);
+    return {
+      success: false,
+      sop: '',
+      error: error instanceof Error ? error.message : 'Failed to generate SOP',
+    };
   }
 };
 

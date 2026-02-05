@@ -1350,6 +1350,45 @@ export async function loadAllObjectiveElements(): Promise<{
 }
 
 /**
+ * Load objective edits by chapter code (for SOP Generator)
+ */
+export async function loadObjectiveEditsByChapter(chapterCode: string): Promise<{
+  success: boolean;
+  data?: Array<{ title: string | null; interpretations2: string | null; objective_code: string }>;
+  error?: string;
+}> {
+  try {
+    // Convert to lowercase to match database chapter_id format
+    const chapterId = chapterCode.toLowerCase();
+
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/nabh_objective_edits?chapter_id=eq.${chapterId}&select=title,interpretations2,objective_code&order=objective_code.asc`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error loading objective edits by chapter:', response.status, errorText);
+      return { success: false, error: `${response.status}: ${errorText}` };
+    }
+
+    const data = await response.json();
+    return { success: true, data };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error loading objective edits by chapter:', errorMessage);
+    return { success: false, error: errorMessage };
+  }
+}
+
+/**
  * Bulk insert objective elements (for Excel import)
  */
 export async function bulkInsertObjectiveElements(
