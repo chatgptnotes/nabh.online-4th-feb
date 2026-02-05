@@ -244,7 +244,7 @@ Date: [Date]           Date: [Date]            Date: [Date]
 [FORM TITLE] - Form No: [Number]
 
 Patient Details:
-ID: HOP-2026-XXXX
+ID: [Use actual Visit ID from database]
 Name: [Name]
 Age/Sex: [Age/Sex]
 Admission Date: [Date]
@@ -263,7 +263,7 @@ Before submitting any evidence, verify:
 - [ ] Minimum 20 rows for registers
 - [ ] 5-6 forms for form-based evidence
 - [ ] All forms completely filled
-- [ ] Proper patient IDs (HOP-2026-XXXX)
+- [ ] Proper patient IDs (use actual Visit IDs from nabh_patients table)
 - [ ] Sonali, Gaurav, and Dr. Shiraz signatures present
 - [ ] Dates within last 30-45 days
 - [ ] Data sourced from masters

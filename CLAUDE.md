@@ -43,7 +43,7 @@ Monitor production deployment and ensure evidence generation uses real database 
 - Professional signatures embedded in all documents
 
 ## VERSION TRACKING
-- Version: 1.2.0
-- Date: 2025-02-01
-- Repository: nabh.online_30jan
+- Version: 1.4
+- Date: 2026-01-29
+- Repository: nabh-evidence-creator
 - Footer shows version, date, repo name

@@ -38,6 +38,7 @@ import DialogActions from '@mui/material/DialogActions';
 import { useNABHStore } from '../store/nabhStore';
 import { getHospitalInfo, getNABHCoordinator, NABH_ASSESSOR_PROMPT } from '../config/hospitalConfig';
 import { getClaudeApiKey, callGeminiAPI } from '../lib/supabase';
+import { generateDocumentNumber, getFormattedDate, getReviewDate } from '../utils/documentNumbering';
 import {
   generateInfographic,
   svgToDataUrl,
@@ -144,9 +145,9 @@ Use this HTML template structure:
   <div class="doc-title">[DOCUMENT TITLE]</div>
 
   <table class="info-table">
-    <tr><th>Document No</th><td>[DOC-XXX-001]</td><th>Version</th><td>1.0</td></tr>
+    <tr><th>Document No</th><td>${generateDocumentNumber(objectiveCode)}</td><th>Version</th><td>1.0</td></tr>
     <tr><th>Department</th><td>[Department]</td><th>Category</th><td>[Policy/SOP/Record]</td></tr>
-    <tr><th>Effective Date</th><td>29/12/2025</td><th>Review Date</th><td>29/12/2025</td></tr>
+    <tr><th>Effective Date</th><td>${getFormattedDate()}</td><th>Review Date</th><td>${getReviewDate()}</td></tr>
   </table>
 
   <table class="auth-table">

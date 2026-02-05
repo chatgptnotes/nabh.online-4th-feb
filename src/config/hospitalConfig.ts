@@ -27,7 +27,7 @@ export const HOSPITALS: Record<string, HospitalInfo> = {
     id: 'hope',
     name: "Hope Hospital",
     address: '2, Teka Naka, Nagpur',
-    phone: '+91-XXXX-XXXXXX',
+    phone: '+91 9823555053',
     email: 'info@hopehospital.com',
     website: 'www.hopehospital.com',
     logo: '/assets/hope-hospital-logo.png',
