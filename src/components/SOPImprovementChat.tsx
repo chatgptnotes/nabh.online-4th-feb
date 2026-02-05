@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { callGeminiAPI } from '../lib/supabase';
 import {
   Box,
   Paper,
@@ -250,23 +251,54 @@ const SOPImprovementChat: React.FC<SOPImprovementChatProps> = ({
   };
 
   const generateImprovedSOP = async (): Promise<string> => {
-    // This would call your AI service with the collected feedback
-    const improvementPrompt = `
-Please improve the following SOP based on the user feedback:
+    const improvementPrompt = `You are a NABH SOP Expert and Quality Improvement Specialist. Please improve the following SOP based on user feedback.
 
-Original SOP: ${sopContent}
+ORIGINAL SOP CONTENT:
+${sopContent}
 
-User Feedback:
-- Hospital-specific details: ${feedbackData['hospital-specific'] || 'None provided'}
-- Previous rules to incorporate: ${feedbackData['previous-rules'] || 'None provided'}
-- NABH compliance improvements: ${feedbackData['compliance'] || 'None provided'}
-- Clarity improvements: ${feedbackData['clarity'] || 'None provided'}
+USER IMPROVEMENT FEEDBACK:
 
-Please generate an improved version that addresses all the feedback while maintaining NABH 3rd Edition compliance.
-    `;
+**Hospital-Specific Details:**
+${feedbackData['hospital-specific'] || 'No specific feedback provided'}
 
-    // Replace with actual AI API call
-    return sopContent + '\n\n<!-- Improved based on user feedback -->';
+**Previous Rules & Procedures:**
+${feedbackData['previous-rules'] || 'No specific feedback provided'}
+
+**NABH Compliance Requirements:**
+${feedbackData['compliance'] || 'No specific feedback provided'}
+
+**Clarity & Usability:**
+${feedbackData['clarity'] || 'No specific feedback provided'}
+
+IMPROVEMENT INSTRUCTIONS:
+1. **Preserve the original HTML structure and styling**
+2. **Incorporate all relevant feedback into the SOP content**
+3. **Ensure NABH 3rd Edition compliance standards**
+4. **Add Hope Hospital-specific details where mentioned**
+5. **Improve clarity and readability based on suggestions**
+6. **Maintain professional medical document formatting**
+7. **Update version number in the document header**
+8. **Add "Revised based on quality improvement feedback" to revision history**
+
+Generate the complete improved HTML SOP document. Return ONLY the HTML content, no explanations.`;
+
+    try {
+      const data = await callGeminiAPI(improvementPrompt, 0.7, 16384);
+      let improvedSOP = data.candidates?.[0]?.content?.parts?.[0]?.text || sopContent;
+      
+      // Clean up any markdown artifacts
+      improvedSOP = improvedSOP.replace(/```html/gi, '').replace(/```/g, '').trim();
+      
+      // Ensure proper HTML structure
+      if (!improvedSOP.toLowerCase().startsWith('<!doctype')) {
+        improvedSOP = '<!DOCTYPE html>\n' + improvedSOP;
+      }
+      
+      return improvedSOP;
+    } catch (error) {
+      console.error('Error generating improved SOP:', error);
+      throw error;
+    }
   };
 
   return (

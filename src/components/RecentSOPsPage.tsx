@@ -22,12 +22,14 @@ import {
   FilterAlt as FilterIcon,
   MergeType as MergeIcon,
   Edit as EditIcon,
+  Chat as ChatIcon,
 } from '@mui/icons-material';
 import { loadSOPsByChapter } from '../services/sopStorage';
 import { extractTextFromPDFUrl, generateSOPFromContent, filterRelevantContent } from '../services/documentExtractor';
 import { loadObjectiveEditsByChapter } from '../services/objectiveStorage';
 import { loadAllSOPPrompts } from '../services/sopPromptStorage';
 import { supabase } from '../lib/supabase';
+import SOPImprovementChat from './SOPImprovementChat';
 
 export default function RecentSOPsPage() {
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
@@ -71,6 +73,11 @@ export default function RecentSOPsPage() {
   const [isTextEditing, setIsTextEditing] = useState(false);
   const [sopPrompts, setSOPPrompts] = useState<any[]>([]);
   const [selectedPromptId, setSelectedPromptId] = useState<string>('');
+
+  // SOP Improvement Chat
+  const [showImprovementChat, setShowImprovementChat] = useState(false);
+  const [sopVersions, setSOPVersions] = useState<Array<{id: string, version: string, content: string, timestamp: Date}>>([]);
+  const [currentVersion, setCurrentVersion] = useState<string>('1.0');
 
   const showSnackbar = (message: string, severity: 'success' | 'error') => {
     setSnackbar({ open: true, message, severity });
@@ -370,6 +377,66 @@ export default function RecentSOPsPage() {
     } finally {
       setGeneratingPDF(false);
     }
+  };
+
+  // SOP Improvement Chat Handlers
+  const handleSOPUpdate = (updatedSOP: string) => {
+    // Create new version
+    const newVersionNumber = (parseFloat(currentVersion) + 0.1).toFixed(1);
+    const newVersion = {
+      id: Date.now().toString(),
+      version: newVersionNumber,
+      content: updatedSOP,
+      timestamp: new Date()
+    };
+    
+    setSOPVersions(prev => [...prev, newVersion]);
+    setCurrentVersion(newVersionNumber);
+    setFinalSOP(updatedSOP);
+    
+    showSnackbar(`SOP updated to version ${newVersionNumber}!`, 'success');
+  };
+
+  const handleFeedbackSave = async (feedback: any) => {
+    try {
+      // Save feedback to database for future improvements
+      const { data: userData } = await supabase.auth.getUser();
+      const { error } = await supabase
+        .from('sop_improvement_feedback')
+        .insert([{
+          chapter_code: selectedChapterCode,
+          objective_code: selectedObjective,
+          feedback_data: feedback,
+          user_id: userData?.user?.id,
+          created_at: new Date().toISOString()
+        }]);
+
+      if (error) throw error;
+      showSnackbar('Feedback saved successfully!', 'success');
+    } catch (error) {
+      console.error('Error saving feedback:', error);
+      showSnackbar('Failed to save feedback', 'error');
+    }
+  };
+
+  const handleStartImprovement = () => {
+    if (!finalSOP) {
+      showSnackbar('Please generate a SOP first before starting improvement', 'error');
+      return;
+    }
+    
+    // Initialize versions array with current SOP as v1.0
+    if (sopVersions.length === 0) {
+      const initialVersion = {
+        id: Date.now().toString(),
+        version: '1.0',
+        content: finalSOP,
+        timestamp: new Date()
+      };
+      setSOPVersions([initialVersion]);
+    }
+    
+    setShowImprovementChat(true);
   };
 
   // Textarea style
@@ -708,9 +775,25 @@ export default function RecentSOPsPage() {
               >
                 {isEditingFinalSOP ? 'Preview' : 'Code'}
               </Button>
+              <Button
+                size="small"
+                variant="contained"
+                color="success"
+                startIcon={<ChatIcon />}
+                onClick={handleStartImprovement}
+                disabled={!finalSOP}
+                sx={{ fontSize: '0.75rem' }}
+              >
+                Improve SOP
+              </Button>
               <IconButton size="small" onClick={() => handleCopy(finalSOP, 'Final SOP')} disabled={!finalSOP}>
                 <CopyIcon fontSize="small" />
               </IconButton>
+              {sopVersions.length > 0 && (
+                <Typography variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
+                  v{currentVersion}
+                </Typography>
+              )}
             </Box>
           </Box>
           {/* Rendered SOP Document Preview */}
@@ -790,6 +873,50 @@ export default function RecentSOPsPage() {
           </Box>
         </Paper>
       </Box>
+
+      {/* SOP Improvement Chat Section */}
+      {showImprovementChat && finalSOP && (
+        <Box sx={{ mt: 2 }}>
+          <Paper elevation={1} sx={{ overflow: 'hidden' }}>
+            <Box sx={{ p: 2, bgcolor: 'success.50', borderBottom: 1, borderColor: 'divider' }}>
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Typography variant="h6" color="success.main">
+                  🤖 SOP Improvement Assistant
+                </Typography>
+                <Box display="flex" alignItems="center" gap={1}>
+                  {sopVersions.length > 1 && (
+                    <Button 
+                      size="small" 
+                      variant="outlined" 
+                      onClick={() => {/* Add version comparison logic */}}
+                    >
+                      Compare Versions
+                    </Button>
+                  )}
+                  <Button 
+                    size="small" 
+                    variant="outlined"
+                    onClick={() => setShowImprovementChat(false)}
+                  >
+                    Close Chat
+                  </Button>
+                </Box>
+              </Box>
+              <Typography variant="body2" color="text.secondary">
+                Let's work together to improve your SOP with targeted questions and iterative refinements
+              </Typography>
+            </Box>
+            <SOPImprovementChat
+              sopContent={finalSOP}
+              sopTitle={objectiveTitle}
+              objectiveCode={selectedObjective}
+              chapterCode={selectedChapterCode}
+              onSOPUpdate={handleSOPUpdate}
+              onFeedbackSave={handleFeedbackSave}
+            />
+          </Paper>
+        </Box>
+      )}
 
       <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
         <Alert severity={snackbar.severity} variant="filled">{snackbar.message}</Alert>
