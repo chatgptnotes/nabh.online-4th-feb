@@ -480,10 +480,13 @@ function AppContent() {
           flexGrow: 1,
           display: 'flex',
           flexDirection: 'column',
-          width: showSidebar ? { sm: `calc(100% - ${drawerWidth}px)` } : '100%',
+          width: showSidebar 
+            ? { xs: '100%', sm: `calc(100% - ${drawerWidth}px)` }
+            : '100%',
+          minWidth: 0, // Prevent flex item from overflowing
           transition: 'all 0.3s ease-in-out',
           overflow: 'auto',
-          height: '100vh', // Ensure it has a height to scroll
+          height: '100vh',
         }}
       >
         <Toolbar />

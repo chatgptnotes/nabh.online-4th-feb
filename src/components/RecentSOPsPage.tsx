@@ -724,12 +724,18 @@ export default function RecentSOPsPage() {
                   onBlur={(e) => setFinalSOP(e.currentTarget.innerHTML)}
                   sx={{
                     width: '100%',
+                    maxWidth: '100%',
                     minHeight: '500px',
                     p: 2,
                     outline: '2px solid #1976d2',
                     bgcolor: '#fff',
                     overflow: 'auto',
-                    '& *': { outline: 'none', maxWidth: '100% !important' },
+                    wordBreak: 'break-word',
+                    '& *': { 
+                      outline: 'none', 
+                      maxWidth: '100% !important',
+                      wordBreak: 'break-word'
+                    },
                   }}
                 />
               ) : isEditingFinalSOP ? (
@@ -750,11 +756,15 @@ export default function RecentSOPsPage() {
               ) : (
                 <Box
                   sx={{
+                    width: '100%',
+                    maxWidth: '100%',
+                    overflow: 'hidden',
                     '& iframe': {
                       width: '100%',
                       minHeight: '500px',
                       border: 'none',
                       backgroundColor: 'white',
+                      maxWidth: '100%',
                     },
                   }}
                 >
@@ -762,7 +772,11 @@ export default function RecentSOPsPage() {
                     srcDoc={finalSOP}
                     title="SOP Preview"
                     sandbox="allow-same-origin allow-popups"
-                    style={{ display: 'block' }}
+                    style={{ 
+                      display: 'block',
+                      width: '100%',
+                      maxWidth: '100%'
+                    }}
                   />
                 </Box>
               )
