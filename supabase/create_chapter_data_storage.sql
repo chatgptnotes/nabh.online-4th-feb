@@ -3,13 +3,14 @@ CREATE TABLE IF NOT EXISTS nabh_chapter_data (
     id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
     chapter_id UUID NOT NULL REFERENCES public.nabh_chapters(id) ON DELETE CASCADE,
     objective_code TEXT,                  -- e.g., 'AAC.1'
-    data_type TEXT NOT NULL,              -- 'documentation' OR 'final_sop'
+    data_type TEXT NOT NULL,              -- 'documentation', 'interpretation', OR 'final_sop'
     content TEXT NOT NULL,                -- The text/HTML content
+    title TEXT,                           -- Optional title for the entry
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     created_by TEXT,                      -- User email/ID
-    
-    CONSTRAINT nabh_chapter_data_type_check CHECK (data_type IN ('documentation', 'final_sop'))
+
+    CONSTRAINT nabh_chapter_data_type_check CHECK (data_type IN ('documentation', 'interpretation', 'final_sop'))
 );
 
 -- Index for faster lookups

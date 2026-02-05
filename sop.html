@@ -3,233 +3,561 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Standard Operating Procedure</title>
+<title>SOP: Healthcare Service Definition & Community Needs</title>
+<!-- html2pdf library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
-  body {
-    font-family: Arial, sans-serif;
-    margin: 20px;
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+body {
+    font-family: 'Segoe UI', Arial, sans-serif;
     line-height: 1.6;
-  }
-  table {
+    color: #333;
+    background: #f5f5f5;
+}
+.page {
+    max-width: 900px;
+    margin: 20px auto;
+    background: white;
+    box-shadow: 0 0 20px rgba(0,0,0,0.1);
+    padding: 40px;
+}
+/* Header Section */
+.header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+.logo {
+    margin-bottom: 10px;
+}
+.logo-icon {
+    font-size: 48px;
+    color: #2563eb;
+}
+.hospital-name {
+    font-size: 28px;
+    font-weight: bold;
+}
+.hospital-name .hope {
+    color: #2563eb;
+}
+.hospital-name .hospital {
+    color: #dc2626;
+}
+.tagline {
+    font-size: 11px;
+    color: #666;
+    letter-spacing: 1px;
+}
+.blue-line {
+    height: 4px;
+    background: linear-gradient(90deg, #2563eb, #1d4ed8);
+    margin: 20px 0;
+}
+/* Objective Code */
+.objective-code {
+    font-size: 14px;
+    color: #333;
+    margin-bottom: 20px;
+}
+/* Title Banner */
+.title-banner {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+    padding: 20px 30px;
+    text-align: center;
+    border-radius: 8px;
+    margin-bottom: 30px;
+}
+.title-banner h1 {
+    font-size: 22px;
+    font-weight: 600;
+}
+/* Metadata Table */
+.metadata-table {
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 20px;
-  }
-  th, td {
-    border: 1px solid #ddd;
-    padding: 8px;
-    text-align: left;
-  }
-  th {
-    background-color: #f2f2f2;
-  }
-  h3 {
-    color: #333;
-    margin-top: 20px;
-    border-bottom: 1px solid #ccc;
+    margin-bottom: 30px;
+    border: 1px solid #e5e7eb;
+}
+.metadata-table td {
+    padding: 12px 15px;
+    border: 1px solid #e5e7eb;
+}
+.metadata-table .label {
+    background: #f9fafb;
+    font-weight: 600;
+    width: 20%;
+    color: #374151;
+}
+.metadata-table .value {
+    width: 30%;
+}
+/* Content Section */
+.content-section {
+    margin-bottom: 25px;
+}
+.content-section h3 {
+    color: #1f2937;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 10px;
     padding-bottom: 5px;
-  }
-  .footer {
-    margin-top: 50px;
+    border-bottom: 2px solid #e5e7eb;
+}
+.content-section p {
+    margin-bottom: 10px;
+    text-align: justify;
+}
+.content-section ul, .content-section ol {
+    margin-left: 25px;
+    margin-bottom: 10px;
+}
+.content-section li {
+    margin-bottom: 8px;
+}
+.content-section ul ul {
+    margin-top: 8px;
+    list-style-type: circle;
+}
+/* Approval Section */
+.approval-section {
+    margin: 40px 0;
+}
+.approval-header {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    background: #4b5563;
+    color: white;
     text-align: center;
-    font-size: 0.8em;
-    color: #777;
-  }
-  .logo {
-    max-width: 150px;
-    height: auto;
+    font-weight: 600;
+    font-size: 13px;
+}
+.approval-header div {
+    padding: 12px;
+    border-right: 1px solid #6b7280;
+}
+.approval-header div:last-child {
+    border-right: none;
+}
+.approval-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    border: 1px solid #d1d5db;
+    border-top: none;
+}
+.approval-cell {
+    padding: 20px;
+    text-align: center;
+    border-right: 1px solid #d1d5db;
+}
+.approval-cell:last-child {
+    border-right: none;
+}
+.approval-cell .name {
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+.approval-cell .designation {
+    font-size: 12px;
+    color: #6b7280;
+    margin-bottom: 5px;
+}
+.approval-cell .date {
+    font-size: 12px;
+    color: #6b7280;
+    margin-bottom: 15px;
+}
+.approval-cell .signature-label {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-bottom: 5px;
+}
+.approval-cell .signature {
+    font-family: 'Brush Script MT', cursive;
+    font-size: 24px;
+    color: #1e3a8a;
+    height: 40px;
+}
+/* Version History */
+.version-history {
+    margin: 40px 0;
+}
+.version-history h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #374151;
+}
+.version-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.version-table th {
+    background: #4b5563;
+    color: white;
+    padding: 10px 15px;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 600;
+}
+.version-table td {
+    padding: 10px 15px;
+    border: 1px solid #e5e7eb;
+    font-size: 13px;
+}
+/* Stamp Area */
+.stamp-area {
+    border: 2px dashed #9ca3af;
+    padding: 30px;
+    text-align: center;
+    margin: 30px 0;
+    color: #9ca3af;
+    font-size: 14px;
+}
+/* Footer */
+.footer {
+    margin-top: 40px;
+    text-align: center;
+}
+.footer .blue-line {
     margin-bottom: 20px;
-  }
-  @media print {
+}
+.footer-content {
+    font-size: 12px;
+    color: #6b7280;
+}
+.footer-content .hospital-info {
+    margin-bottom: 5px;
+}
+.footer-content .hospital-info strong {
+    color: #374151;
+}
+.footer-content .disclaimer {
+    font-size: 11px;
+    color: #9ca3af;
+    margin-top: 10px;
+}
+@media print {
     body {
-      margin: 1cm;
+        background: white;
     }
-    table {
-      width: 100%;
+    .page {
+        box-shadow: none;
+        margin: 0;
+        padding: 20px;
     }
-  }
+    .generate-btn {
+        display: none !important;
+    }
+}
+/* Generate PDF Button */
+.generate-btn {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+.generate-btn:hover {
+    background: linear-gradient(135deg, #1d4ed8, #1e40af);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
+}
+.generate-btn:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+.generate-btn svg {
+    width: 18px;
+    height: 18px;
+}
 </style>
 </head>
 <body>
+<div class="page">
+    <!-- Header -->
+    <div class="header">
+        <div class="logo">
+            <div class="logo-icon">🏥</div>
+            <div class="hospital-name">
+                <span class="hope">HOPE</span><span class="hospital">HOSPITAL</span>
+            </div>
+            <div class="tagline">Assured | Committed | Proficient</div>
+        </div>
+    </div>
 
-<table style="width:100%;">
-  <tr>
-    <td style="width:33%; text-align:left;">
-      <img src="hospital_logo.png" alt="Hospital Logo" class="logo">  <!-- Replace 'hospital_logo.png' with your actual logo file -->
-    </td>
-    <td style="width:34%; text-align:center;">
-      <h2>Hope Hospital</h2>
-      <h3>Standard Operating Procedure</h3>
-    </td>
-    <td style="width:33%; text-align:right;">
-      <table>
+    <div class="blue-line"></div>
+
+    <!-- Objective Code -->
+    <div class="objective-code">
+        <strong>AAC.1.a</strong> - The healthcare services being provided are defined and are in consonance with the needs of the community.
+    </div>
+
+    <!-- Title Banner -->
+    <div class="title-banner">
+        <h1>Healthcare Service Definition & Community Needs Assessment</h1>
+    </div>
+
+    <!-- Metadata Table -->
+    <table class="metadata-table">
         <tr>
-          <th>Document No.</th>
-          <td>AAC-SOPSP-001</td>
+            <td class="label">Document No</td>
+            <td class="value">DOC-AAC-001</td>
+            <td class="label">Version</td>
+            <td class="value">1.0</td>
         </tr>
         <tr>
-          <th>Issue Date</th>
-          <td>2024-01-01</td>
+            <td class="label">Department</td>
+            <td class="value">Quality Department</td>
+            <td class="label">Category</td>
+            <td class="value">SOP</td>
         </tr>
         <tr>
-          <th>Rev. No.</th>
-          <td>0.0</td>
+            <td class="label">Effective Date</td>
+            <td class="value">29/12/2025</td>
+            <td class="label">Review Date</td>
+            <td class="value">29/12/2026</td>
         </tr>
-      </table>
-    </td>
-  </tr>
-</table>
+    </table>
 
-<table style="width:100%;">
-  <tr>
-    <th>Prepared By</th>
-    <th>Reviewed By</th>
-    <th>Approved By</th>
-  </tr>
-  <tr>
-    <td>[Name of Preparer]</td>
-    <td>[Name of Reviewer]</td>
-    <td>[Name of Approver]</td>
-  </tr>
-  <tr>
-    <td>[Designation]</td>
-    <td>[Designation]</td>
-    <td>[Designation]</td>
-  </tr>
-</table>
+    <!-- Content Sections -->
+    <div class="content-section">
+        <h3>Purpose</h3>
+        <p>To ensure that the healthcare services provided at Hope Hospital are clearly defined and aligned with the needs of the community it serves, ensuring accessibility, quality, and relevance of services.</p>
+    </div>
 
-<h3>1. Title</h3>
-<p>The healthcare services being provided are defined and are in consonance with the needs of the community.</p>
+    <div class="content-section">
+        <h3>Scope</h3>
+        <p>This Standard Operating Procedure (SOP) applies to all departments and healthcare services provided within Hope Hospital, encompassing inpatient, outpatient, emergency, and specialized care units.</p>
+    </div>
 
-<h3>2. Interpretation (SHCO 3rd Edition)</h3>
-<p>The services provided are clearly defined and are in consonance with the requirements of the community. The needs of the community could be captured through various feedback mechanisms. However, this does not preclude the organization from starting new services based on its judgment.</p>
-
-<h3>3. Purpose</h3>
-<p>To establish a standardized process for defining, assessing, and aligning healthcare services with the identified needs of the community served by Hope Hospital. This SOP ensures that services are relevant, accessible, and responsive to the evolving health requirements of the population.</p>
-
-<h3>4. Scope</h3>
-<p>This SOP applies to all departments and healthcare services provided within Hope Hospital, including but not limited to outpatient services, inpatient care, emergency services, diagnostic services, and specialized treatments. It encompasses all staff members involved in the planning, delivery, and evaluation of healthcare services.</p>
-
-<h3>5. Responsibility</h3>
-<ul>
-  <li><strong>Medical Superintendent:</strong> Overall responsibility for ensuring that the hospital's services align with community needs.</li>
-  <li><strong>Department Heads:</strong> Responsible for assessing the needs of the community relevant to their specific department and ensuring that services are tailored accordingly.</li>
-  <li><strong>Quality Department:</strong> Responsible for coordinating community needs assessments, analyzing feedback data, and monitoring the implementation of this SOP.</li>
-  <li><strong>Marketing/Community Relations Department:</strong> Responsible for gathering community feedback through surveys, focus groups, and other engagement activities.</li>
-</ul>
-
-<h3>6. Procedure</h3>
-<ol>
-  <li><strong>Needs Assessment:</strong>
-    <ul>
-      <li>Conduct regular community health needs assessments (CHNAs) at least every three years. These assessments should include:
+    <div class="content-section">
+        <h3>Responsibility</h3>
         <ul>
-          <li>Analysis of demographic data and health statistics for the community.</li>
-          <li>Surveys and questionnaires to gather feedback from patients, families, and community members.</li>
-          <li>Focus groups and interviews with key stakeholders, including community leaders, healthcare providers, and representatives from local organizations.</li>
-          <li>Review of existing health data and reports from local and national health agencies.</li>
+            <li><strong>Shilpi Singh Baghel (Incharge Nurse):</strong> Responsible for implementing this SOP at the ward level, ensuring that patient needs and feedback are communicated effectively to the management.</li>
+            <li><strong>Sharad, Kashish (MRD):</strong> Responsible for maintaining accurate records of patient feedback and community needs assessments, ensuring that data is readily available for service planning and improvement.</li>
+            <li><strong>Reception Staff:</strong> Responsible for gathering initial patient feedback upon arrival and discharge, providing a direct line of communication with the community.</li>
+            <li><strong>Dr. Rajesh Kumar (Chief Cardiologist):</strong> Responsible for aligning cardiology services with community needs, participating in service planning, and reviewing patient outcomes.</li>
         </ul>
-      </li>
-      <li>Document all needs assessment activities and findings in a comprehensive report.</li>
-    </ul>
-  </li>
-  <li><strong>Service Definition and Planning:</strong>
-    <ul>
-      <li>Based on the needs assessment findings, department heads, in coordination with the Medical Superintendent and Quality Department, will define or revise the scope of services offered by their respective departments.</li>
-      <li>New services or modifications to existing services should be aligned with identified community needs and documented in the department's service plan.</li>
-      <li>The service plan should include:
+    </div>
+
+    <div class="content-section">
+        <h3>Procedure</h3>
+        <ol>
+            <li><strong>Service Definition:</strong>
+                <ul>
+                    <li>Each department will clearly define the services it provides, including the target population, service objectives, and expected outcomes.</li>
+                    <li>Service definitions will be documented and made accessible to all staff and patients.</li>
+                </ul>
+            </li>
+            <li><strong>Community Needs Assessment:</strong>
+                <ul>
+                    <li>Hope Hospital will conduct regular community needs assessments to identify the healthcare needs and preferences of the population it serves.</li>
+                    <li>Assessments will utilize various feedback mechanisms, including patient surveys, community forums, and data from local health agencies.</li>
+                    <li>The MRD (Sharad, Kashish) will compile and analyze the assessment data, identifying key trends and unmet needs.</li>
+                </ul>
+            </li>
+            <li><strong>Service Planning:</strong>
+                <ul>
+                    <li>Based on the community needs assessment, Hope Hospital will develop a service plan that outlines how it will address the identified needs.</li>
+                    <li>The service plan will be developed in consultation with key stakeholders, including medical staff, nursing staff (Shilpi Singh Baghel), administration, and community representatives.</li>
+                    <li>The Cath Lab resources will be considered when planning cardiology services, ensuring optimal utilization of existing infrastructure.</li>
+                </ul>
+            </li>
+            <li><strong>Feedback Mechanisms:</strong>
+                <ul>
+                    <li>Implement multiple feedback mechanisms to continuously monitor patient satisfaction and identify areas for service improvement.</li>
+                    <li>Reception staff will gather initial feedback from patients upon arrival and discharge.</li>
+                    <li>Patient surveys will be administered regularly to assess satisfaction with specific services.</li>
+                    <li>Establish a patient advisory council to provide ongoing feedback and input on service planning.</li>
+                </ul>
+            </li>
+            <li><strong>Service Review:</strong>
+                <ul>
+                    <li>Regularly review the services provided by Hope Hospital to ensure they remain aligned with community needs and best practices.</li>
+                    <li>Service reviews will be conducted at least annually and will involve a multidisciplinary team.</li>
+                    <li>Review outcomes data, patient feedback, and community needs assessment results to identify areas for improvement.</li>
+                    <li>Dr. Rajesh Kumar will participate in cardiology service reviews, ensuring alignment with community health goals.</li>
+                </ul>
+            </li>
+            <li><strong>New Service Development:</strong>
+                <ul>
+                    <li>The organization is not precluded from starting new services based on its judgment, even if not directly identified in community feedback.</li>
+                    <li>New services should be evaluated for their potential impact on community health and alignment with the hospital's mission.</li>
+                </ul>
+            </li>
+        </ol>
+    </div>
+
+    <div class="content-section">
+        <h3>Equipment Used</h3>
         <ul>
-          <li>Description of the service.</li>
-          <li>Target population.</li>
-          <li>Goals and objectives of the service.</li>
-          <li>Resources required (staff, equipment, space).</li>
-          <li>Performance indicators and metrics for evaluating the service's effectiveness.</li>
+            <li>Cath Lab (for cardiology services)</li>
+            <li>Ventilators (for critical care)</li>
         </ul>
-      </li>
-    </ul>
-  </li>
-  <li><strong>Community Feedback Mechanisms:</strong>
-    <ul>
-      <li>Establish ongoing mechanisms for gathering community feedback, including:
+    </div>
+
+    <div class="content-section">
+        <h3>References</h3>
         <ul>
-          <li>Patient satisfaction surveys.</li>
-          <li>Suggestion boxes or online feedback forms.</li>
-          <li>Regular community forums or town hall meetings.</li>
-          <li>Advisory boards or committees with community representation.</li>
+            <li>SHCO 3rd Edition Interpretation: The healthcare services being provided are defined and are in consonance with the needs of the community. The services provided are clearly defined and are in consonance with the requirements of the community. The needs of the community could be captured through various feedback mechanisms. However, this does not preclude the organization from starting new services based on its judgment.</li>
         </ul>
-      </li>
-      <li>Analyze feedback data regularly and use it to inform service improvements and new service development.</li>
-    </ul>
-  </li>
-  <li><strong>Service Implementation:</strong>
-    <ul>
-      <li>Implement new or modified services according to the department's service plan.</li>
-      <li>Ensure that staff members are adequately trained and equipped to deliver the services effectively.</li>
-      <li>Communicate the availability of new or modified services to the community through appropriate channels (e.g., website, social media, community events).</li>
-    </ul>
-  </li>
-  <li><strong>Monitoring and Evaluation:</strong>
-    <ul>
-      <li>Regularly monitor the performance of healthcare services using established performance indicators and metrics.</li>
-      <li>Conduct periodic evaluations to assess the impact of services on community health outcomes.</li>
-      <li>Use evaluation findings to make necessary adjustments to service delivery and planning.</li>
-    </ul>
-  </li>
-  <li><strong>Documentation:</strong>
-    <ul>
-      <li>Maintain comprehensive documentation of all activities related to this SOP, including:
-        <ul>
-          <li>Needs assessment reports.</li>
-          <li>Department service plans.</li>
-          <li>Community feedback data and analysis.</li>
-          <li>Service performance data and evaluation reports.</li>
-        </ul>
-      </li>
-      <li>Ensure that documentation is readily accessible to relevant staff members and stakeholders.</li>
-    </ul>
-  </li>
-</ol>
+    </div>
 
-<h3>7. Relevant Historical SOPs and Policies</h3>
-<p>This SOP integrates and supersedes the following historical SOPs and policies to ensure a comprehensive approach to community needs assessment and service alignment:</p>
-<ul>
-  <li>AAC-5: Inpatient Admission Policy</li>
-  <li>AAC-6: Non-Availability of Beds</li>
-  <li>AAC-7: SOP – Prioritization of Patient Access Based on Clinical Needs</li>
-  <li>AAC-8: Patient Referral Services & Transfer of Patient Policy</li>
-  <li>COP.53: Pain Management</li>
-  <li>AAC-11: Policy for EWS</li>
-  <li>AAC-12: Department of Laboratory SOP</li>
-  <li>AAC-14: HOPE HOSPITAL LAB CRITICAL VALUE REPORTING REGISTER</li>
-  <li>AAC-15: MOU for outsourcing of Pathology Investigation</li>
-  <li>AAC-16: Laboratory Quality Assurance</li>
-  <li>AAC-23: Laboratory Safety and Biohazard</li>
-  <li>AAC-24: Radiation Safety</li>
-</ul>
+    <!-- Approval Section -->
+    <div class="approval-section">
+        <div class="approval-header">
+            <div>PREPARED BY</div>
+            <div>REVIEWED BY</div>
+            <div>APPROVED BY</div>
+        </div>
+        <div class="approval-body">
+            <div class="approval-cell">
+                <div class="name">Name: Sonali Kakde</div>
+                <div class="designation">Designation: Clinical Audit Coordinator</div>
+                <div class="date">Date: 29/12/2025</div>
+                <div class="signature-label">Signature:</div>
+                <div class="signature">Sonali</div>
+            </div>
+            <div class="approval-cell">
+                <div class="name">Name: Gaurav Agrawal</div>
+                <div class="designation">Designation: Hospital Administrator</div>
+                <div class="date">Date: 29/12/2025</div>
+                <div class="signature-label">Signature:</div>
+                <div class="signature">Gaurav</div>
+            </div>
+            <div class="approval-cell">
+                <div class="name">Name: Dr. Shiraz Khan</div>
+                <div class="designation">Designation: Quality Coordinator / Administrator</div>
+                <div class="date">Date: 29/12/2025</div>
+                <div class="signature-label">Signature:</div>
+                <div class="signature">Dr. Khan</div>
+            </div>
+        </div>
+    </div>
 
-<h3>8. References</h3>
-<ul>
-  <li>SHCO 3rd Edition Standards</li>
-  <li>Community Health Needs Assessment Guidelines</li>
-  <li>Relevant regulatory guidelines and standards</li>
-</ul>
+    <!-- Version History -->
+    <div class="version-history">
+        <h3>Version History</h3>
+        <table class="version-table">
+            <thead>
+                <tr>
+                    <th>Version</th>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Changed By</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>1.0</td>
+                    <td>29/12/2025</td>
+                    <td>Initial Release</td>
+                    <td>Sonali Kakde</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 
-<h3>9. Training</h3>
-<p>All relevant staff will receive training on this SOP upon implementation and periodically thereafter. Training records will be maintained by the HR department.</p>
+    <!-- Stamp Area -->
+    <div class="stamp-area">
+        [HOSPITAL STAMP AREA]
+    </div>
 
-<h3>10. Audit</h3>
-<p>The Quality Department will conduct periodic audits to ensure compliance with this SOP. Audit findings will be reported to the Medical Superintendent and Department Heads for corrective action.</p>
-
-<div class="footer">
-  <p><strong>Hope Hospital</strong></p>
-  <p>This is a controlled document. Unauthorized reproduction or distribution is prohibited.</p>
-  <table style="width:50%; margin: 20px auto; border: none;">
-    <tr>
-      <td style="border: none; text-align: left;">Stamp:</td>
-      <td style="border: none; text-align: right;">Signature:</td>
-    </tr>
-  </table>
+    <!-- Footer -->
+    <div class="footer">
+        <div class="blue-line"></div>
+        <div class="footer-content">
+            <div class="hospital-info">
+                <strong>Hope Hospital</strong> | 2, Teka Naka, Nagpur
+            </div>
+            <div class="hospital-info">
+                Phone: +91-XXXX-XXXXXX | Email: info@hopehospital.com | Website: www.hopehospital.com
+            </div>
+            <div class="disclaimer">
+                This is a controlled document. Unauthorized copying or distribution is prohibited.
+            </div>
+        </div>
+    </div>
 </div>
 
+<!-- Generate PDF Button -->
+<button class="generate-btn" onclick="generatePDF()">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+    Generate PDF
+</button>
+
+<script>
+function generatePDF() {
+    const btn = document.querySelector('.generate-btn');
+    const originalText = btn.innerHTML;
+
+    // Show loading state
+    btn.disabled = true;
+    btn.innerHTML = `
+        <svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" style="animation: spin 1s linear infinite;">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" style="opacity: 0.25;"></circle>
+            <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" style="opacity: 0.75;"></path>
+        </svg>
+        Generating...
+    `;
+
+    const element = document.querySelector('.page');
+    const opt = {
+        margin: [10, 10, 10, 10],
+        filename: 'SOP-Healthcare-Service-Definition.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: {
+            scale: 2,
+            useCORS: true,
+            letterRendering: true
+        },
+        jsPDF: {
+            unit: 'mm',
+            format: 'a4',
+            orientation: 'portrait'
+        },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    };
+
+    html2pdf().set(opt).from(element).save().then(() => {
+        // Reset button
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }).catch((error) => {
+        console.error('PDF generation failed:', error);
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        alert('PDF generation failed. Please try again.');
+    });
+}
+</script>
+
+<style>
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+</style>
 </body>
 </html>
