@@ -311,7 +311,7 @@ export default function RecentSOPsPage() {
 
           <!-- Objective Code -->
           <div style="font-size: 14px; color: #333; margin-bottom: 20px;">
-            <strong>${selectedObjective || selectedChapterCode} SOP</strong> - ${objectiveTitle}
+            <strong>SOP - ${selectedObjective || selectedChapterCode}</strong> - ${objectiveTitle}
           </div>
 
           <!-- Title Banner -->
