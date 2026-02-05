@@ -71,6 +71,7 @@ const MANAGEMENT_SECTIONS = [
   { id: 'clinical-audits', label: 'Clinical Audits', icon: 'fact_check', path: '/clinical-audits', description: 'Manage clinical audits and quality assessments' },
   { id: 'surveys', label: 'Surveys', icon: 'poll', path: '/surveys', description: 'Manage patient & staff satisfaction surveys and quality assessments' },
   { id: 'evidence-prompt', label: 'Evidence Prompt Master', icon: 'assignment', path: '/evidence-prompt', description: 'NABH evidence generation prompts & templates' },
+  { id: 'sop-prompt', label: 'SOP Prompt Master', icon: 'description', path: '/sop-prompt', description: 'SOP generation prompts & templates' },
   { id: 'cheat-sheets', label: 'Chapter Cheat Sheets', icon: 'quiz', path: '/cheat-sheets', description: 'Quick reference sheets for each NABH chapter with Google Docs links' },
   { id: 'search', label: 'Global Search', icon: 'search', path: '/search', description: 'Search across all evidences, objectives, committees, and masters by keywords' },
   { id: 'kpis', label: 'KPIs', icon: 'analytics', path: '/kpis', description: 'Quality indicators' },
