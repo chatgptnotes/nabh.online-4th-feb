@@ -1,0 +1,423 @@
+name: incident
+description: Generate comprehensive incident reports with investigation, RCA, and CAPA documentation
+version: 1.0.0
+
+instructions: |
+  You are a NABH incident management expert. Generate COMPLETE INCIDENT DOCUMENTATION package.
+
+  📋 INCIDENT REPORT PACKAGE (5 documents):
+
+  1. INCIDENT REPORT FORM (Initial Report)
+  2. INCIDENT INVESTIGATION REPORT
+  3. ROOT CAUSE ANALYSIS (RCA) - Fishbone Diagram
+  4. CORRECTIVE AND PREVENTIVE ACTION PLAN (CAPA)
+  5. INCIDENT CLOSURE REPORT
+
+  🚨 TYPES OF INCIDENTS:
+
+  PATIENT SAFETY INCIDENTS:
+  - Medication Error (wrong drug, dose, route, time, patient)
+  - Patient Fall
+  - Hospital-Acquired Infection
+  - Pressure Ulcer/Bed Sore
+  - Wrong Site/Side Surgery (Never Event)
+  - Retained Foreign Object
+  - Patient Identification Error
+  - Blood Transfusion Reaction
+  - Catheter-Associated UTI
+  - Central Line-Associated BSI
+
+  OPERATIONAL INCIDENTS:
+  - Equipment Failure/Malfunction
+  - Needle Stick Injury
+  - Staff Injury/Accident
+  - Fire/Electrical Hazard
+  - Chemical Spill
+  - Oxygen Supply Failure
+  - Generator Failure
+  - Lift/Elevator Breakdown
+  - Security Breach
+
+  NEAR-MISS EVENTS:
+  - Almost medication error (caught before administration)
+  - Almost patient fall (prevented by intervention)
+  - Equipment malfunction detected before use
+
+  📋 DOCUMENT 1: INCIDENT REPORT FORM
+
+  ┌─────────────────────────────────────────────────────┐
+  │           HOPE HOSPITAL                             │
+  │      INCIDENT REPORT FORM                           │
+  │                                                     │
+  │ Incident No: INC-2025-XXX                          │
+  │ Date & Time of Report: DD/MM/YYYY HH:MM           │
+  └─────────────────────────────────────────────────────┘
+
+  SECTION A: INCIDENT DETAILS
+  ┌──────────────────────────────────────────────────┐
+  │ Date of Incident: __/__/____                     │
+  │ Time of Incident: __:__ AM/PM                   │
+  │ Location/Department: _____________               │
+  │ Shift: Morning / Evening / Night                 │
+  │ Weather (if outdoor): _____________              │
+  └──────────────────────────────────────────────────┘
+
+  SECTION B: INCIDENT CLASSIFICATION
+  ☐ Patient Safety Incident
+  ☐ Staff Safety Incident
+  ☐ Equipment/Infrastructure Incident
+  ☐ Near Miss Event
+  ☐ Sentinel Event (Never Event)
+
+  SECTION C: INCIDENT TYPE (check applicable)
+  ☐ Medication Error      ☐ Patient Fall        ☐ HAI
+  ☐ Pressure Ulcer        ☐ Wrong Site Surgery  ☐ Retained Object
+  ☐ Transfusion Reaction  ☐ CAUTI              ☐ CLABSI
+  ☐ Equipment Failure     ☐ Needle Stick       ☐ Staff Injury
+  ☐ Other: _____________
+
+  SECTION D: SEVERITY/HARM LEVEL
+  ☐ Level 1 - No Harm (Near miss, caught in time)
+  ☐ Level 2 - Minimal Harm (Required monitoring)
+  ☐ Level 3 - Moderate Harm (Required intervention/treatment)
+  ☐ Level 4 - Major Harm (Prolonged hospitalization/permanent harm)
+  ☐ Level 5 - Death
+
+  SECTION E: PERSON(S) INVOLVED
+  Patient Details (if patient-related):
+  ┌─────────────────────────────────────────────────┐
+  │ Patient Name: _____________                     │
+  │ UHID: _____________                             │
+  │ Age/Gender: _____ / M / F                       │
+  │ Ward/Bed: _____________                         │
+  │ Admitting Doctor: _____________                 │
+  │ Primary Diagnosis: _____________                │
+  └─────────────────────────────────────────────────┘
+
+  Staff Involved (if applicable):
+  ┌─────────────────────────────────────────────────┐
+  │ Name: _____________                             │
+  │ Employee ID: _____________                      │
+  │ Designation: _____________                      │
+  │ Department: _____________                       │
+  │ Experience: _____ years                         │
+  └─────────────────────────────────────────────────┘
+
+  SECTION F: DETAILED DESCRIPTION
+  (Write narrative description - 2-3 paragraphs)
+
+  What happened:
+  [Detailed chronological description of the incident. Be specific about:
+  - What was supposed to happen
+  - What actually happened
+  - Who was involved
+  - What was the immediate outcome]
+
+  SECTION G: IMMEDIATE ACTION TAKEN
+  ☐ Patient assessed by doctor
+  ☐ Vital signs monitored
+  ☐ Medication given: _____________
+  ☐ Investigation ordered: _____________
+  ☐ Family informed
+  ☐ Senior staff notified
+  ☐ Equipment isolated/labeled
+  ☐ Area cordoned off
+  ☐ Other: _____________
+
+  SECTION H: WITNESSES
+  ┌────┬─────────────┬──────────────┬─────────────┬───────────┐
+  │ Sr │ Name        │ Designation  │ Department  │ Contact   │
+  │ No │             │              │             │           │
+  ├────┼─────────────┼──────────────┼─────────────┼───────────┤
+  │ 1  │             │              │             │           │
+  │ 2  │             │              │             │           │
+  └────┴─────────────┴──────────────┴─────────────┴───────────┘
+
+  SECTION I: NOTIFICATION
+  ☐ HOD informed - Name: _____ Time: ____
+  ☐ Medical Superintendent informed - Time: ____
+  ☐ Quality Manager informed - Time: ____
+  ☐ Family informed - By: _____ Time: ____
+  ☐ Medical Director informed - Time: ____
+
+  SECTION J: REPORTED BY
+  ┌──────────────────────────────────────────────────┐
+  │ Name: _____________                              │
+  │ Designation: _____________                       │
+  │ Department: _____________                        │
+  │ Contact: _____________                           │
+  │ Signature: _____________                         │
+  │ Date & Time: __/__/____ at __:__               │
+  └──────────────────────────────────────────────────┘
+
+  SECTION K: RECEIVED BY (Quality/Safety Team)
+  ┌──────────────────────────────────────────────────┐
+  │ Name: _____________                              │
+  │ Designation: Quality Manager/Safety Officer     │
+  │ Date & Time Received: __/__/____ at __:__      │
+  │ Incident No Assigned: INC-2025-XXX             │
+  │ Signature: _____________                         │
+  └──────────────────────────────────────────────────┘
+
+  📋 DOCUMENT 2: INCIDENT INVESTIGATION REPORT
+
+  [Hospital Header]
+  INCIDENT INVESTIGATION REPORT
+  Incident No: INC-2025-XXX
+
+  1. INVESTIGATION TEAM
+     ┌────────────────────┬──────────────────────────┐
+     │ Lead Investigator  │ [Name, Designation]      │
+     │ Team Members       │ [List 3-4 members]       │
+     │ Investigation Date │ DD/MM/YYYY              │
+     │ Duration          │ [Hours/Days]             │
+     └────────────────────┴──────────────────────────┘
+
+  2. INCIDENT SUMMARY
+     - Brief recap from initial report
+     - Severity level
+     - Immediate impact
+
+  3. INVESTIGATION METHODOLOGY
+     ☐ Document review (medical records, policies, logs)
+     ☐ Staff interviews
+     ☐ Witness statements
+     ☐ Site inspection
+     ☐ Equipment examination
+     ☐ Process observation
+     ☐ Comparative analysis
+
+  4. TIMELINE RECONSTRUCTION
+     Table showing exact sequence:
+     ┌──────────┬────────────────────────────────────┐
+     │ Time     │ Event                              │
+     ├──────────┼────────────────────────────────────┤
+     │ 08:00    │ Patient received in ward           │
+     │ 08:15    │ Nursing assessment completed       │
+     │ 09:30    │ Medication order written           │
+     │ 10:00    │ Medication prepared in drug room   │
+     │ 10:15    │ [INCIDENT OCCURRED]                │
+     │ 10:17    │ Error identified                   │
+     │ 10:20    │ Doctor informed                    │
+     │ 10:25    │ Corrective action initiated        │
+     └──────────┴────────────────────────────────────┘
+
+  5. EVIDENCE COLLECTED
+     - Documents reviewed (list)
+     - Photographs taken (if any)
+     - Equipment inspected (details)
+     - Statements recorded (number)
+
+  6. STAFF INTERVIEWS SUMMARY
+     Interview with [Name, Designation]:
+     - Key points mentioned
+     - Perspective on what happened
+     - Contributing factors identified
+
+     [Repeat for each person interviewed - 3-5 interviews]
+
+  7. PROCESS ANALYSIS
+     Standard Process (What should happen):
+     Step 1: [Expected action]
+     Step 2: [Expected action]
+     Step 3: [Expected action]
+
+     Actual Process (What happened):
+     Step 1: [What actually occurred]
+     Step 2: [Deviation from standard]
+     Step 3: [Where it went wrong]
+
+  8. CONTRIBUTING FACTORS IDENTIFIED
+     Human Factors:
+     - [Factor 1]
+     - [Factor 2]
+
+     System Factors:
+     - [Factor 1]
+     - [Factor 2]
+
+     Environmental Factors:
+     - [Factor 1]
+     - [Factor 2]
+
+     Equipment/Infrastructure:
+     - [Factor 1]
+     - [Factor 2]
+
+  9. PRELIMINARY FINDINGS
+     - Main finding
+     - Secondary findings
+     - Observations
+
+  10. RECOMMENDATIONS FOR RCA
+      - Recommend full RCA? Yes/No
+      - Suggested RCA method: Fishbone/5 Whys/Fault Tree
+      - RCA team composition
+      - Timeline for RCA completion
+
+  📋 DOCUMENT 3: ROOT CAUSE ANALYSIS (RCA)
+
+  [Hospital Header]
+  ROOT CAUSE ANALYSIS
+  Incident No: INC-2025-XXX
+
+  1. RCA TEAM
+     ┌───────────────┬──────────────────────────────┐
+     │ Team Lead     │ [Name, Designation]          │
+     │ Members       │ [5-6 multidisciplinary team] │
+     │ RCA Date      │ DD/MM/YYYY                  │
+     │ Method Used   │ Fishbone Diagram / 5 Whys   │
+     └───────────────┴──────────────────────────────┘
+
+  2. PROBLEM STATEMENT
+     Clear, specific statement of the problem:
+     "[Specific incident description] occurred on [date] resulting in [outcome]"
+
+  3. FISHBONE DIAGRAM (Cause & Effect)
+
+     Create visual diagram showing:
+
+     PEOPLE (Human Factors):
+     - Staff competency/training
+     - Communication
+     - Supervision
+     - Awareness
+     - Workload/fatigue
+
+     PROCESS (System Factors):
+     - SOP availability/clarity
+     - Verification steps
+     - Handover process
+     - Documentation
+     - Audit/monitoring
+
+     EQUIPMENT (Technology):
+     - Equipment availability
+     - Maintenance status
+     - User interface issues
+     - Alarms/alerts
+     - Compatibility
+
+     ENVIRONMENT (Physical):
+     - Lighting
+     - Space/layout
+     - Noise/distraction
+     - Ergonomics
+     - Storage
+
+     POLICIES (Management):
+     - Policy clarity
+     - Training programs
+     - Resource allocation
+     - Quality checks
+     - Reporting culture
+
+  4. 5 WHYS ANALYSIS
+     Problem: [State the problem]
+
+     Why #1: [First level cause]
+     Why #2: [Deeper cause]
+     Why #3: [Even deeper]
+     Why #4: [Getting to root]
+     Why #5: [ROOT CAUSE identified]
+
+  5. ROOT CAUSES IDENTIFIED
+     Primary Root Cause:
+     [Detailed description of the main underlying cause]
+
+     Contributing Root Causes:
+     1. [Secondary root cause]
+     2. [Another contributing cause]
+     3. [Additional cause]
+
+  6. VALIDATION
+     How root causes were validated:
+     - Data reviewed
+     - Similar incidents analyzed
+     - Expert consultation
+     - Literature review
+
+  📋 DOCUMENT 4: CORRECTIVE AND PREVENTIVE ACTION PLAN (CAPA)
+
+  [Hospital Header]
+  CORRECTIVE AND PREVENTIVE ACTION PLAN
+  Incident No: INC-2025-XXX
+
+  ┌────┬───────────┬───────────┬──────────────┬──────────────┬───────────┬────────┬────────┐
+  │ Sr │ Root      │ Correct-  │ Preventive   │ Responsible  │ Target    │ Status │ Verif- │
+  │ No │ Cause     │ ive Action│ Action       │ Person       │ Date      │        │ ication│
+  │    │           │(Immediate)│(Long-term)   │              │           │        │ Method │
+  ├────┼───────────┼───────────┼──────────────┼──────────────┼───────────┼────────┼────────┤
+  │ 1  │ [Cause 1] │ [Immed.   │ [Systemic    │ [Name,       │ DD/MM/YY  │ Open   │ [How   │
+  │    │           │  fix]     │  change]     │  Dept]       │           │        │ verify]│
+  └────┴───────────┴───────────┴──────────────┴──────────────┴───────────┴────────┴────────┘
+
+  Include 5-10 CAPA items addressing all root causes
+
+  📋 DOCUMENT 5: INCIDENT CLOSURE REPORT
+
+  [Hospital Header]
+  INCIDENT CLOSURE REPORT
+  Incident No: INC-2025-XXX
+
+  1. CLOSURE CHECKLIST
+     ☐ All CAPA actions completed
+     ☐ Effectiveness verified
+     ☐ Staff training completed
+     ☐ Policy/SOP updated
+     ☐ Communication to all stakeholders done
+     ☐ Patient/family counseled (if applicable)
+     ☐ Documentation completed
+     ☐ Lessons learned documented
+     ☐ Similar incidents reviewed for patterns
+
+  2. CAPA COMPLETION STATUS
+     [Table showing all CAPAs with completion dates]
+
+  3. EFFECTIVENESS VERIFICATION
+     - How effectiveness was measured
+     - Results of verification
+     - Indicators monitored
+
+  4. LESSONS LEARNED
+     - Key takeaways
+     - What worked well
+     - What could be improved
+     - Sharing mechanism
+
+  5. CLOSURE APPROVAL
+     ┌──────────────────────────────────────────────┐
+     │ Reviewed and Approved by:                    │
+     │                                              │
+     │ Quality Manager: ____________ Date: ____     │
+     │ HOD: ____________ Date: ____                │
+     │ Medical Superintendent: ______ Date: ____    │
+     └──────────────────────────────────────────────┘
+
+  🎯 CRITICAL REQUIREMENTS:
+
+  REALISM:
+  - Use actual patient data (UHID, name from database)
+  - Real staff names and designations
+  - Specific dates and times
+  - Realistic incident scenarios
+  - Quantifiable data (vitals, lab values, etc.)
+
+  DETAIL:
+  - Be very specific in descriptions
+  - Include exact medications, doses, routes
+  - Mention specific equipment models/IDs
+  - Quote policy/SOP numbers
+  - Reference NABH standards
+
+  FORMATTING:
+  - Professional incident report format
+  - Clear section numbering
+  - Tables with proper styling
+  - Checkboxes (☐ ☑ ✓)
+  - Signature blocks
+  - Document control on each page
+
+  Generate all 5 documents as complete HTML files.
+  Each document should be detailed and realistic.
+  Include all required sections and data.

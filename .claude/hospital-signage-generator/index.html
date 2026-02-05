@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Signage Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 10px;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .subtitle {
+            text-align: center;
+            color: rgba(255,255,255,0.9);
+            margin-bottom: 30px;
+            font-size: 1.1rem;
+        }
+
+        .input-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            resize: vertical;
+            min-height: 100px;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .options-row {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .options-row .form-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            background: white;
+            cursor: pointer;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 15px 40px;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 100%;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            color: white;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .output-section {
+            display: none;
+        }
+
+        .output-section.active {
+            display: block;
+        }
+
+        .signage-container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+
+        .signage-preview {
+            border: 3px dashed #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            overflow: auto;
+        }
+
+        /* Hospital Signage Styles */
+        .hospital-sign {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .sign-header {
+            padding: 15px 20px;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .sign-header.emergency { background: #dc3545; }
+        .sign-header.warning { background: #ffc107; color: #333; }
+        .sign-header.info { background: #0d6efd; }
+        .sign-header.safety { background: #198754; }
+        .sign-header.direction { background: #0dcaf0; color: #333; }
+        .sign-header.policy { background: #6f42c1; }
+        .sign-header.instruction { background: #fd7e14; }
+
+        .sign-icon {
+            font-size: 2.5rem;
+            min-width: 60px;
+            text-align: center;
+        }
+
+        .sign-content {
+            padding: 25px;
+            text-align: center;
+        }
+
+        .sign-english {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .sign-hindi {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: #555;
+            font-family: 'Noto Sans Devanagari', 'Mangal', sans-serif;
+        }
+
+        .sign-subtext {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid #eee;
+        }
+
+        .sign-subtext-english {
+            font-size: 1rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .sign-subtext-hindi {
+            font-size: 0.95rem;
+            color: #777;
+            font-family: 'Noto Sans Devanagari', 'Mangal', sans-serif;
+        }
+
+        .sign-footer {
+            background: #f8f9fa;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        /* Detailed Signage Styles */
+        .detailed-sign {
+            background: white;
+            border-radius: 10px;
+            overflow: visible;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .detailed-sign .sign-header {
+            text-align: center;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        .detailed-sign .sign-header .sign-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        .detailed-sign .header-text {
+            text-align: center;
+        }
+
+        .detailed-sign .header-english {
+            font-size: 1.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .detailed-sign .header-hindi {
+            font-size: 1.5rem;
+            font-family: 'Noto Sans Devanagari', 'Mangal', sans-serif;
+            margin-top: 5px;
+            opacity: 0.95;
+        }
+
+        .detailed-content {
+            padding: 25px 35px 25px 40px;
+        }
+
+        .detail-section {
+            margin-bottom: 25px;
+            overflow: visible;
+        }
+
+        .detail-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 5px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #667eea;
+            display: inline-block;
+        }
+
+        .section-title-hindi {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #555;
+            font-family: 'Noto Sans Devanagari', 'Mangal', sans-serif;
+            margin-bottom: 15px;
+        }
+
+        .detail-items {
+            list-style: none;
+            padding: 0;
+        }
+
+        .detail-item {
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            margin-left: 0;
+        }
+
+        .detail-item:last-child {
+            border-bottom: none;
+        }
+
+        .item-number {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+
+        .item-content {
+            flex: 1;
+        }
+
+        .item-english {
+            font-size: 1rem;
+            color: #333;
+            margin-bottom: 4px;
+            line-height: 1.5;
+        }
+
+        .item-hindi {
+            font-size: 0.95rem;
+            color: #666;
+            font-family: 'Noto Sans Devanagari', 'Mangal', sans-serif;
+            line-height: 1.6;
+        }
+
+        .detail-note {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .note-english {
+            font-size: 0.95rem;
+            color: #555;
+            margin-bottom: 5px;
+        }
+
+        .note-hindi {
+            font-size: 0.9rem;
+            color: #666;
+            font-family: 'Noto Sans Devanagari', 'Mangal', sans-serif;
+        }
+
+        /* Size variations for detailed signs */
+        .detailed-sign.size-small {
+            max-width: 650px;
+        }
+        .detailed-sign.size-small .header-english { font-size: 1.4rem; }
+        .detailed-sign.size-small .header-hindi { font-size: 1.2rem; }
+        .detailed-sign.size-small .item-english { font-size: 0.9rem; }
+        .detailed-sign.size-small .item-hindi { font-size: 0.85rem; }
+        .detailed-sign.size-small .item-number { width: 24px; height: 24px; font-size: 0.75rem; }
+
+        .detailed-sign.size-medium {
+            max-width: 800px;
+        }
+
+        .detailed-sign.size-large {
+            max-width: 950px;
+        }
+        .detailed-sign.size-large .header-english { font-size: 2.1rem; }
+        .detailed-sign.size-large .header-hindi { font-size: 1.7rem; }
+        .detailed-sign.size-large .item-english { font-size: 1.1rem; }
+        .detailed-sign.size-large .item-hindi { font-size: 1.05rem; }
+        .detailed-sign.size-large .item-number { width: 32px; height: 32px; font-size: 0.95rem; }
+        .detailed-sign.size-large .detailed-content { padding: 30px 45px 30px 50px; }
+
+        .download-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-download {
+            background: #28a745;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-download:hover {
+            background: #218838;
+        }
+
+        .btn-new {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-new:hover {
+            background: #5a6268;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .error-message.active {
+            display: block;
+        }
+
+        .templates {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        .template-section-label {
+            width: 100%;
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 10px;
+            margin-bottom: 5px;
+        }
+
+        .template-btn {
+            padding: 8px 16px;
+            background: #f0f0f0;
+            border: 2px solid #e0e0e0;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .template-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .template-btn.detailed {
+            background: #e8f4fd;
+            border-color: #b8daff;
+        }
+
+        .template-btn.detailed:hover {
+            background: #0d6efd;
+            border-color: #0d6efd;
+        }
+
+        .hint-text {
+            font-size: 0.85rem;
+            color: #888;
+            margin-top: 8px;
+            font-style: italic;
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 1.8rem; }
+            .sign-english { font-size: 1.5rem; }
+            .sign-hindi { font-size: 1.3rem; }
+            .options-row { flex-direction: column; }
+            .detailed-sign .header-english { font-size: 1.4rem; }
+            .detailed-sign .header-hindi { font-size: 1.2rem; }
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .input-section, .download-buttons, .btn, h1, .subtitle {
+                display: none !important;
+            }
+            .hospital-sign, .detailed-sign {
+                box-shadow: none;
+                border: 2px solid #333;
+            }
+            .signage-container {
+                padding: 0;
+                box-shadow: none;
+            }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <h1>Hospital Signage Generator</h1>
+        <p class="subtitle">Create professional bilingual hospital signs with AI - Simple signs or detailed informational boards</p>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <div class="input-section">
+            <div class="form-group">
+                <label>Quick Templates:</label>
+                <div class="templates">
+                    <span class="template-section-label">Simple Signs:</span>
+                    <button class="template-btn" onclick="useTemplate('Emergency Exit')">Emergency Exit</button>
+                    <button class="template-btn" onclick="useTemplate('No Smoking')">No Smoking</button>
+                    <button class="template-btn" onclick="useTemplate('Wash Your Hands')">Wash Hands</button>
+                    <button class="template-btn" onclick="useTemplate('Silence Please')">Silence</button>
+                    <button class="template-btn" onclick="useTemplate('Wear Mask')">Wear Mask</button>
+                    <button class="template-btn" onclick="useTemplate('ICU - Restricted Entry')">ICU</button>
+
+                    <span class="template-section-label">Detailed Signage (AI Generated Content):</span>
+                    <button class="template-btn detailed" onclick="useTemplate('Patient Rights and Responsibilities')">Patient Rights</button>
+                    <button class="template-btn detailed" onclick="useTemplate('Visitor Guidelines')">Visitor Guidelines</button>
+                    <button class="template-btn detailed" onclick="useTemplate('Hand Hygiene Steps')">Hand Hygiene Steps</button>
+                    <button class="template-btn detailed" onclick="useTemplate('Fire Safety Instructions')">Fire Safety</button>
+                    <button class="template-btn detailed" onclick="useTemplate('COVID-19 Safety Protocol')">COVID Protocol</button>
+                    <button class="template-btn detailed" onclick="useTemplate('Infection Control Guidelines')">Infection Control</button>
+                    <button class="template-btn detailed" onclick="useTemplate('Emergency Contact Numbers')">Emergency Contacts</button>
+                    <button class="template-btn detailed" onclick="useTemplate('Patient Discharge Instructions')">Discharge Info</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="signText">Enter Signage Text or Topic:</label>
+                <textarea id="signText" placeholder="Enter text for simple sign (e.g., 'Emergency Exit', 'No Smoking')&#10;&#10;OR enter a topic for detailed signage (e.g., 'Patient Rights and Responsibilities', 'Visitor Guidelines', 'Hand Washing Steps', 'Fire Safety Protocol')&#10;&#10;The AI will automatically detect if detailed content generation is needed."></textarea>
+                <p class="hint-text">Tip: For detailed signage, enter topics like "Patient Rights", "Visitor Rules", "Safety Protocol", etc. The AI will generate comprehensive content.</p>
+            </div>
+
+            <div class="options-row">
+                <div class="form-group">
+                    <label for="signType">Sign Type:</label>
+                    <select id="signType">
+                        <option value="auto">Auto Detect</option>
+                        <option value="emergency">Emergency (Red)</option>
+                        <option value="warning">Warning (Yellow)</option>
+                        <option value="info">Information (Blue)</option>
+                        <option value="safety">Safety (Green)</option>
+                        <option value="direction">Direction (Cyan)</option>
+                        <option value="policy">Policy (Purple)</option>
+                        <option value="instruction">Instructions (Orange)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="signSize">Sign Size:</label>
+                    <select id="signSize">
+                        <option value="medium">Medium (A4)</option>
+                        <option value="small">Small (A5)</option>
+                        <option value="large">Large (A3)</option>
+                    </select>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" id="generateBtn" onclick="generateSignage()">
+                Generate Signage
+            </button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p id="loadingText">Analyzing your request and generating signage...</p>
+        </div>
+
+        <div class="output-section" id="outputSection">
+            <div class="signage-container">
+                <div class="signage-preview" id="signagePreview">
+                    <!-- Generated signage will appear here -->
+                </div>
+
+                <div class="download-buttons">
+                    <button class="btn btn-download" onclick="downloadAsPNG()">
+                        <span>📥</span> Download PNG
+                    </button>
+                    <button class="btn btn-download" onclick="downloadAsPDF()">
+                        <span>📄</span> Download PDF
+                    </button>
+                    <button class="btn btn-download btn-new" onclick="createNew()">
+                        <span>➕</span> Create New
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <script>
+        const API_KEY = 'AIzaSyAHaKpeQJI5yY0VoSnIXdEO0PecoDjDOz0';
+
+        // Keywords that indicate detailed signage is needed
+        const detailedKeywords = [
+            'rights', 'responsibilities', 'guidelines', 'protocol', 'rules',
+            'steps', 'instructions', 'procedure', 'policy', 'policies',
+            'checklist', 'list', 'safety measures', 'precautions',
+            'do and don\'t', 'dos and don\'ts', 'tips', 'information',
+            'contact', 'numbers', 'discharge', 'admission', 'consent',
+            'privacy', 'confidential', 'complaint', 'feedback', 'visiting hours',
+            'code of conduct', 'hygiene', 'infection control', 'covid',
+            'coronavirus', 'pandemic', 'quarantine', 'isolation'
+        ];
+
+        const signIcons = {
+            'exit': '🚪',
+            'emergency': '🚨',
+            'fire': '🔥',
+            'no smoking': '🚭',
+            'smoking': '🚭',
+            'wash': '🧼',
+            'hand': '🖐️',
+            'hygiene': '🧼',
+            'mask': '😷',
+            'silence': '🤫',
+            'quiet': '🤫',
+            'reception': '🛎️',
+            'icu': '🏥',
+            'operation': '⚕️',
+            'surgery': '⚕️',
+            'pharmacy': '💊',
+            'medicine': '💊',
+            'laboratory': '🔬',
+            'lab': '🔬',
+            'xray': '📷',
+            'x-ray': '📷',
+            'radiology': '📷',
+            'toilet': '🚻',
+            'restroom': '🚻',
+            'washroom': '🚻',
+            'parking': '🅿️',
+            'ambulance': '🚑',
+            'wheelchair': '♿',
+            'disabled': '♿',
+            'stairs': '🚶',
+            'elevator': '🛗',
+            'lift': '🛗',
+            'cafeteria': '🍽️',
+            'canteen': '🍽️',
+            'water': '💧',
+            'drinking': '💧',
+            'visitor': '👥',
+            'staff': '👨‍⚕️',
+            'doctor': '👨‍⚕️',
+            'nurse': '👩‍⚕️',
+            'restricted': '⛔',
+            'danger': '☠️',
+            'biohazard': '☣️',
+            'radiation': '☢️',
+            'electrical': '⚡',
+            'caution': '⚠️',
+            'wet floor': '⚠️',
+            'slippery': '⚠️',
+            'rights': '📋',
+            'responsibilities': '📋',
+            'guidelines': '📝',
+            'rules': '📜',
+            'policy': '📜',
+            'protocol': '📑',
+            'steps': '📊',
+            'instructions': '📝',
+            'contact': '📞',
+            'phone': '📞',
+            'covid': '🦠',
+            'corona': '🦠',
+            'infection': '🦠',
+            'discharge': '📤',
+            'admission': '📥',
+            'privacy': '🔒',
+            'security': '🔐',
+            'complaint': '📝',
+            'feedback': '💬'
+        };
+
+        function useTemplate(text) {
+            document.getElementById('signText').value = text;
+        }
+
+        function getIconForText(text) {
+            const lowerText = text.toLowerCase();
+            for (const [keyword, icon] of Object.entries(signIcons)) {
+                if (lowerText.includes(keyword)) {
+                    return icon;
+                }
+            }
+            return '🏥';
+        }
+
+        function needsDetailedSignage(text) {
+            const lowerText = text.toLowerCase();
+            return detailedKeywords.some(keyword => lowerText.includes(keyword));
+        }
+
+        function detectSignType(text) {
+            const lowerText = text.toLowerCase();
+
+            const emergencyKeywords = ['emergency', 'fire', 'danger', 'evacuate', 'ambulance', 'code red', 'code blue'];
+            const warningKeywords = ['warning', 'caution', 'wet floor', 'slippery', 'hazard', 'restricted', 'no entry', 'danger'];
+            const safetyKeywords = ['safety', 'wash', 'sanitize', 'mask', 'hygiene', 'clean', 'infection control'];
+            const directionKeywords = ['direction', 'arrow', 'way', 'floor', 'room', 'department', 'reception', 'entrance', 'exit'];
+            const policyKeywords = ['rights', 'responsibilities', 'policy', 'rules', 'guidelines', 'privacy', 'consent', 'complaint'];
+            const instructionKeywords = ['steps', 'instructions', 'procedure', 'protocol', 'how to', 'checklist'];
+
+            if (emergencyKeywords.some(k => lowerText.includes(k))) return 'emergency';
+            if (warningKeywords.some(k => lowerText.includes(k))) return 'warning';
+            if (policyKeywords.some(k => lowerText.includes(k))) return 'policy';
+            if (instructionKeywords.some(k => lowerText.includes(k))) return 'instruction';
+            if (safetyKeywords.some(k => lowerText.includes(k))) return 'safety';
+            if (directionKeywords.some(k => lowerText.includes(k))) return 'direction';
+
+            return 'info';
+        }
+
+        async function callGeminiAPI(prompt) {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{
+                            text: prompt
+                        }]
+                    }],
+                    generationConfig: {
+                        temperature: 0.4,
+                        maxOutputTokens: 2048,
+                    }
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('API request failed');
+            }
+
+            const data = await response.json();
+            return data.candidates[0].content.parts[0].text;
+        }
+
+        async function generateSignage() {
+            const signText = document.getElementById('signText').value.trim();
+
+            if (!signText) {
+                showError('Please enter text for the signage');
+                return;
+            }
+
+            const signType = document.getElementById('signType').value;
+            const signSize = document.getElementById('signSize').value;
+            const isDetailed = needsDetailedSignage(signText);
+
+            document.getElementById('generateBtn').disabled = true;
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('loadingText').textContent = isDetailed
+                ? 'Generating detailed signage content with AI...'
+                : 'Creating your hospital signage...';
+            document.getElementById('outputSection').classList.remove('active');
+            hideError();
+
+            try {
+                if (isDetailed) {
+                    await generateDetailedSignage(signText, signType, signSize);
+                } else {
+                    await generateSimpleSignage(signText, signType, signSize);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showError('Failed to generate signage. Please check your internet connection and try again.');
+            } finally {
+                document.getElementById('generateBtn').disabled = false;
+                document.getElementById('loading').classList.remove('active');
+            }
+        }
+
+        async function generateSimpleSignage(signText, signType, signSize) {
+            const prompt = `You are a hospital signage expert. For the following hospital sign text, provide:
+1. A clear, concise main text in English (properly formatted for a sign)
+2. Accurate Hindi translation of the main text
+3. Optional subtext/instruction in English (if applicable)
+4. Hindi translation of the subtext (if applicable)
+5. The appropriate sign category: emergency, warning, info, safety, direction, policy, or instruction
+
+Input text: "${signText}"
+
+Respond in this exact JSON format only, no other text:
+{
+    "mainTextEnglish": "MAIN TEXT HERE",
+    "mainTextHindi": "मुख्य पाठ यहाँ",
+    "subtextEnglish": "Additional instruction if needed",
+    "subtextHindi": "अतिरिक्त निर्देश यदि आवश्यक हो",
+    "category": "info"
+}
+
+Ensure the Hindi translation is medically accurate and commonly understood. Use standard hospital terminology.`;
+
+            const response = await callGeminiAPI(prompt);
+            let signData;
+
+            try {
+                const jsonMatch = response.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    signData = JSON.parse(jsonMatch[0]);
+                } else {
+                    throw new Error('Invalid response format');
+                }
+            } catch (e) {
+                signData = {
+                    mainTextEnglish: signText.toUpperCase(),
+                    mainTextHindi: signText,
+                    subtextEnglish: '',
+                    subtextHindi: '',
+                    category: detectSignType(signText)
+                };
+            }
+
+            const finalCategory = signType === 'auto' ? signData.category : signType;
+            renderSimpleSignage(signData, finalCategory, signSize);
+        }
+
+        async function generateDetailedSignage(signText, signType, signSize) {
+            const prompt = `You are a hospital signage expert creating detailed informational signage for hospitals in India.
+
+Topic: "${signText}"
+
+Generate comprehensive, medically accurate, and legally appropriate content for this hospital signage. The content should be suitable for display in Indian hospitals.
+
+Respond in this exact JSON format only:
+{
+    "titleEnglish": "MAIN TITLE IN ENGLISH",
+    "titleHindi": "मुख्य शीर्षक हिंदी में",
+    "category": "policy|instruction|safety|info|warning|emergency",
+    "sections": [
+        {
+            "sectionTitleEnglish": "Section Title (if multiple sections needed, otherwise use empty string)",
+            "sectionTitleHindi": "खंड शीर्षक",
+            "items": [
+                {
+                    "english": "First point in English",
+                    "hindi": "पहला बिंदु हिंदी में"
+                },
+                {
+                    "english": "Second point in English",
+                    "hindi": "दूसरा बिंदु हिंदी में"
+                }
+            ]
+        }
+    ],
+    "noteEnglish": "Important note or footer text if applicable (optional)",
+    "noteHindi": "महत्वपूर्ण नोट (वैकल्पिक)"
+}
+
+Requirements:
+- Generate 5-10 relevant points that would actually appear on hospital signage
+- Content must be medically accurate and follow Indian healthcare standards
+- Hindi translations should use common medical terminology understood by general public
+- Keep each point concise but informative (1-2 sentences max)
+- For rights: include right to information, consent, privacy, dignity, etc.
+- For guidelines: include practical, actionable items
+- For protocols: include step-by-step instructions
+- For safety: include preventive measures and emergency procedures
+- The category should match the content type`;
+
+            const response = await callGeminiAPI(prompt);
+            let signData;
+
+            try {
+                const jsonMatch = response.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    signData = JSON.parse(jsonMatch[0]);
+                } else {
+                    throw new Error('Invalid response format');
+                }
+            } catch (e) {
+                console.error('Parse error:', e);
+                showError('Failed to parse AI response. Please try again.');
+                return;
+            }
+
+            const finalCategory = signType === 'auto' ? signData.category : signType;
+            renderDetailedSignage(signData, finalCategory, signSize);
+        }
+
+        function renderSimpleSignage(data, category, size) {
+            const icon = getIconForText(data.mainTextEnglish);
+
+            let fontSize = { main: '2rem', hindi: '1.8rem', sub: '1rem', subHindi: '0.95rem' };
+            if (size === 'small') {
+                fontSize = { main: '1.5rem', hindi: '1.3rem', sub: '0.85rem', subHindi: '0.8rem' };
+            } else if (size === 'large') {
+                fontSize = { main: '2.5rem', hindi: '2.2rem', sub: '1.2rem', subHindi: '1.1rem' };
+            }
+
+            const hasSubtext = data.subtextEnglish && data.subtextEnglish.trim();
+
+            const signHTML = `
+                <div class="hospital-sign" id="hospitalSign">
+                    <div class="sign-header ${category}">
+                        <span class="sign-icon">${icon}</span>
+                        <span style="font-size: 1.2rem; font-weight: 600;">HOSPITAL SIGNAGE / अस्पताल साइनेज</span>
+                    </div>
+                    <div class="sign-content">
+                        <div class="sign-english" style="font-size: ${fontSize.main}">${data.mainTextEnglish}</div>
+                        <div class="sign-hindi" style="font-size: ${fontSize.hindi}">${data.mainTextHindi}</div>
+                        ${hasSubtext ? `
+                        <div class="sign-subtext">
+                            <div class="sign-subtext-english" style="font-size: ${fontSize.sub}">${data.subtextEnglish}</div>
+                            <div class="sign-subtext-hindi" style="font-size: ${fontSize.subHindi}">${data.subtextHindi}</div>
+                        </div>
+                        ` : ''}
+                    </div>
+                    <div class="sign-footer">
+                        <span>Hospital Safety Signage</span>
+                        <span>🏥 ISO Compliant</span>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('signagePreview').innerHTML = signHTML;
+            document.getElementById('outputSection').classList.add('active');
+            document.getElementById('outputSection').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function renderDetailedSignage(data, category, size) {
+            const icon = getIconForText(data.titleEnglish);
+
+            // Size-based font adjustments
+            let sizeClass = 'size-medium';
+            if (size === 'small') sizeClass = 'size-small';
+            if (size === 'large') sizeClass = 'size-large';
+
+            let sectionsHTML = '';
+
+            for (const section of data.sections) {
+                let itemsHTML = '';
+                section.items.forEach((item, index) => {
+                    itemsHTML += `
+                        <li class="detail-item">
+                            <span class="item-number">${index + 1}</span>
+                            <div class="item-content">
+                                <div class="item-english">${item.english}</div>
+                                <div class="item-hindi">${item.hindi}</div>
+                            </div>
+                        </li>
+                    `;
+                });
+
+                const hasSectionTitle = section.sectionTitleEnglish && section.sectionTitleEnglish.trim();
+
+                sectionsHTML += `
+                    <div class="detail-section">
+                        ${hasSectionTitle ? `
+                            <h3 class="section-title">${section.sectionTitleEnglish}</h3>
+                            <div class="section-title-hindi">${section.sectionTitleHindi}</div>
+                        ` : ''}
+                        <ul class="detail-items">
+                            ${itemsHTML}
+                        </ul>
+                    </div>
+                `;
+            }
+
+            const hasNote = data.noteEnglish && data.noteEnglish.trim();
+
+            const signHTML = `
+                <div class="detailed-sign ${sizeClass}" id="hospitalSign">
+                    <div class="sign-header ${category}">
+                        <span class="sign-icon">${icon}</span>
+                        <div class="header-text">
+                            <div class="header-english">${data.titleEnglish}</div>
+                            <div class="header-hindi">${data.titleHindi}</div>
+                        </div>
+                    </div>
+                    <div class="detailed-content">
+                        ${sectionsHTML}
+                        ${hasNote ? `
+                            <div class="detail-note">
+                                <div class="note-english">📌 ${data.noteEnglish}</div>
+                                <div class="note-hindi">${data.noteHindi}</div>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="sign-footer">
+                        <span>Hospital Information Board</span>
+                        <span>🏥 As per Indian Healthcare Standards</span>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('signagePreview').innerHTML = signHTML;
+            document.getElementById('outputSection').classList.add('active');
+            document.getElementById('outputSection').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        async function downloadAsPNG() {
+            const signElement = document.getElementById('hospitalSign');
+
+            // Temporarily remove transform for accurate capture
+            const originalTransform = signElement.style.transform;
+            signElement.style.transform = 'none';
+
+            try {
+                const canvas = await html2canvas(signElement, {
+                    scale: 3,
+                    backgroundColor: '#ffffff',
+                    useCORS: true,
+                    logging: false,
+                    windowWidth: signElement.scrollWidth,
+                    windowHeight: signElement.scrollHeight
+                });
+
+                const link = document.createElement('a');
+                link.download = 'hospital-signage.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            } catch (error) {
+                console.error('Download error:', error);
+                showError('Failed to download. Please try again.');
+            } finally {
+                // Restore transform
+                signElement.style.transform = originalTransform;
+            }
+        }
+
+        async function downloadAsPDF() {
+            const signElement = document.getElementById('hospitalSign');
+
+            // Temporarily remove transform for accurate capture
+            const originalTransform = signElement.style.transform;
+            signElement.style.transform = 'none';
+
+            try {
+                const canvas = await html2canvas(signElement, {
+                    scale: 3,
+                    backgroundColor: '#ffffff',
+                    useCORS: true,
+                    logging: false,
+                    windowWidth: signElement.scrollWidth,
+                    windowHeight: signElement.scrollHeight
+                });
+
+                const { jsPDF } = window.jspdf;
+
+                // Determine orientation based on aspect ratio
+                const aspectRatio = canvas.width / canvas.height;
+                const orientation = aspectRatio > 1 ? 'landscape' : 'portrait';
+
+                const pdf = new jsPDF({
+                    orientation: orientation,
+                    unit: 'mm',
+                    format: 'a4'
+                });
+
+                const pageWidth = orientation === 'landscape' ? 297 : 210;
+                const pageHeight = orientation === 'landscape' ? 210 : 297;
+
+                // Add margins
+                const margin = 10;
+                const maxWidth = pageWidth - (margin * 2);
+                const maxHeight = pageHeight - (margin * 2);
+
+                let imgWidth = maxWidth;
+                let imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+                // If image is too tall, scale by height instead
+                if (imgHeight > maxHeight) {
+                    imgHeight = maxHeight;
+                    imgWidth = (canvas.width * imgHeight) / canvas.height;
+                }
+
+                const x = (pageWidth - imgWidth) / 2;
+                const y = (pageHeight - imgHeight) / 2;
+
+                pdf.addImage(canvas.toDataURL('image/png'), 'PNG', x, y, imgWidth, imgHeight);
+                pdf.save('hospital-signage.pdf');
+            } catch (error) {
+                console.error('PDF download error:', error);
+                showError('Failed to download PDF. Please try again.');
+            } finally {
+                // Restore transform
+                signElement.style.transform = originalTransform;
+            }
+        }
+
+        function createNew() {
+            document.getElementById('signText').value = '';
+            document.getElementById('signType').value = 'auto';
+            document.getElementById('outputSection').classList.remove('active');
+            document.getElementById('signText').focus();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function showError(message) {
+            const errorEl = document.getElementById('errorMessage');
+            errorEl.textContent = message;
+            errorEl.classList.add('active');
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').classList.remove('active');
+        }
+
+        // Allow Ctrl+Enter to generate
+        document.getElementById('signText').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                generateSignage();
+            }
+        });
+    </script>
+</body>
+</html>

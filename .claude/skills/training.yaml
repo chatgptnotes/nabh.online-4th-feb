@@ -1,0 +1,141 @@
+name: training
+description: Generate complete training evidence (single HTML with Circular, Attendance, Content, Assessment, Report)
+version: 2.1.0
+
+instructions: |
+  Generate a SINGLE COMBINED HTML file containing all 5 training documents in Hope Hospital format.
+
+  📤 OUTPUT: ONE HTML FILE with all 5 documents (page breaks between each)
+  Filename: training_[topic]_complete.html
+  Location: public/training_evidence/
+
+  ═══════════════════════════════════════════════════════════════════
+  DOCUMENT STRUCTURE (All in ONE file):
+  ═══════════════════════════════════════════════════════════════════
+
+  DOCUMENT 1: TRAINING CIRCULAR (1 page)
+  - Hope Hospital logo
+  - Title: "Circular For Training"
+  - Topic (underlined)
+  - Date (1 day before training)
+  - Message: "This is to inform all staff that the following training for [Topic] will be conducted on [Date]"
+  - Table: Sr.No. | Topics | Trainer | Training Time
+  - Signature: Gaurav Agrawal, Administrator
+  - Hospital footer
+
+  DOCUMENT 2: ATTENDANCE SHEET (with all 46 staff)
+  - Hope Hospital logo
+  - Title: "Attendance sheet"
+  - Date, Time, Topics, Trainer
+  - Table: Sr.No. | Name | Designation | Department | Signature (empty)
+  - ALL 46 staff members listed
+  - Hospital footer
+
+  DOCUMENT 3: TRAINING CONTENT (key points)
+  - Hope Hospital logo
+  - Title: "Training Content"
+  - Topic, Date, Duration
+  - Learning Objectives (5-7 points)
+  - Key concepts in highlight boxes
+  - Summary table or key takeaways
+  - Prepared By: Trainer name
+  - Hospital footer
+
+  DOCUMENT 4: TRAINING ASSESSMENT
+  - Hope Hospital logo
+  - Title: "Training Assessment"
+  - Topic, Date, Pass Criteria (≥70%)
+  - 5-10 MCQ questions with correct answers marked ✓
+  - Results table: Sr.No. | Name | Designation | Score | % | Result (Pass/Fail)
+  - 8-15 employees with scores
+  - Summary box: Total Assessed, Average Score, Pass Rate
+  - Hospital footer
+
+  DOCUMENT 5: TRAINING COMPLETION REPORT
+  - Hope Hospital logo
+  - Title: "Training Completion Report"
+  - Report Date (1 day after training)
+  - Executive Summary (2-3 lines)
+  - Training Details table
+  - Attendance Statistics
+  - Assessment Results summary
+  - Recommendations (3-4 points)
+  - Approval: Prepared By | Reviewed By | Approved By
+  - Hospital footer
+
+  ═══════════════════════════════════════════════════════════════════
+  🎯 STAFF LIST (Use EXACTLY):
+  ═══════════════════════════════════════════════════════════════════
+
+  1. Dr. B.K. Murali - CMD - Admin
+  2. Dr. Shiraz Khan - Quality Co-ordinator - ICU
+  3. Gaurav Agrawal - Administrator - Admin
+  4. Dr. Afzal Sheikh - RMO - ICU
+  5. Dr. Suhash Tiple - Consultant - ICU
+  6. Dr. Sachin Gathibande - RMO - ICU
+  7. Dr. Swapnil Charpe - RMO - Casualty
+  8. Dr. Sharad Kawale - RMO - General Ward
+  9. Brother Chandraprakash Bisen - ICN - ICU
+  10. Sister Farzana Khan - Head Nurse - ICU
+  11. Brother Ajay Meshram - Nursing Staff - Casualty
+  12. Shashank Upgade - HR Attendant - Admin
+  13. Aman Rajak - Fire Safety Officer - Safety
+  14. Roma Kangwani - Physiotherapist - Physiotherapy
+  15. Ayushi Nandagawali - Physiotherapist Attendant - Physiotherapy
+  16. Nitin Bawane - X-Ray Technician - Radiology
+  17. Pratik Vyankat - X-Ray Technician Attendant - Radiology
+  18. Apeksha Wandre - OT Technician - OT
+  19. Shruti Uikey - OT Technician - OT
+  20. Sarvesh Bhramhe - OT Technician - OT
+  21. Digesh Bisen - Lab Technician - Laboratory
+  22. Rachana Rathore - Lab Technician - Laboratory
+  23. Sarita Rangari - Lab Attendant - Laboratory
+  24. Nisha Sharma - Receptionist - Front Office
+  25. Diksha Sakhare - Receptionist - Front Office
+  26. Ruchika Jambhulkar - Pharmacist - Pharmacy
+  27. Tejash Akhare - Pharmacist - Pharmacy
+  28. Abhishek Dannar - Pharmacist - Pharmacy
+  29. Lalit Meshram - Attendant Pharmacist - Pharmacy
+  30. Jagruti Tembhare - Billing Staff - Billing
+  31. Azhar Khan - Billing Staff - Billing
+  32. Madhuri Marwate - Billing Staff - Billing
+  33. Pragati Nandeshwar - Billing Staff - Billing
+  34. Kashish Jagwani - MRD Attendant - MRD
+  35. Asha Sakhare - Aya - Housekeeping
+  36. Urmila Lautkar - Aya - Housekeeping
+  37. Shubhangi Naik - Aya - Housekeeping
+  38. Shrushti Lendare - Aya - Housekeeping
+  39. Shilpa Bankar - Aya - Housekeeping
+  40. Karuna Dhupare - Aya - Housekeeping
+  41. Usha Bhave - Aya - Housekeeping
+  42. Kartik Jangade - Wardboy - Ward
+  43. Vivek Channe - Wardboy - Ward
+  44. Afroz Khan - Security Guard - Security
+  45. Kiran Kadbe - Security Guard - Security
+  46. Jiyalal Sukhdeve - Security Guard - Security
+
+  ═══════════════════════════════════════════════════════════════════
+  🎯 CRITICAL REQUIREMENTS:
+  ═══════════════════════════════════════════════════════════════════
+
+  1. ONE HTML file with all 5 documents (use page-break-after: always)
+  2. Logo: https://www.nabh.online/assets/hope-hospital-logo.png
+  3. Training date: 3-6 months ago
+  4. Circular date: 1 day before training
+  5. Report date: 1 day after training
+  6. Default trainer: "Dr. B.K. Murali"
+  7. Default time: "11:30 AM"
+  8. Include ALL 46 staff in attendance
+  9. Assessment: 8-15 staff with realistic scores (mostly passing)
+  10. Attendance rate: ~93-95%
+  11. Pass rate: ~90-100%
+
+  Footer on EVERY document:
+  "Hope Hospital Plot No. 2, Teka Naka Kamptee Road, Nagpur - 440017.
+   Phone: +91 712 2980073 | Cell: +91 9823555053
+   E-mail: info@hopehospital.com | Website: www.hopehospital.com"
+
+  ═══════════════════════════════════════════════════════════════════
+  📋 REFERENCE: See example at
+  public/training_evidence/training_hand_hygiene_complete.html
+  ═══════════════════════════════════════════════════════════════════

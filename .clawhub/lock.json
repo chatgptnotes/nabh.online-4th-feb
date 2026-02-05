@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "google-drive": {
+      "version": "1.0.1",
+      "installedAt": 1770129792108
+    },
+    "nano-banana-pro-ptnlkl": {
+      "version": "1.0.0",
+      "installedAt": 1770131258320
+    },
+    "elevenlabs-phone-reminder-lite": {
+      "version": "1.0.0",
+      "installedAt": 1770131673134
+    }
+  }
+}
