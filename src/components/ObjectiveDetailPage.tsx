@@ -73,8 +73,10 @@ import {
   parseGoogleDriveUrl,
   loadSourceDocuments,
   saveSourceDocument,
+  saveGoogleDriveLink,
   deleteSourceDocument,
   recordToUploadedDocument,
+  recordToGoogleDriveLink,
   saveDocumentEvidence,
   loadDocumentEvidence,
 } from '../services/documentEvidenceService';
@@ -522,7 +524,7 @@ export default function ObjectiveDetailPage() {
       try {
         const result = await loadSourceDocuments(objective.code);
         if (result.success && result.data && result.data.length > 0) {
-          // Convert database records to UploadedDocument format
+          // Convert database records to UploadedDocument format (uploaded files)
           const documents = result.data
             .filter(record => record.source_type === 'upload')
             .map(record => recordToUploadedDocument(record));
@@ -530,6 +532,16 @@ export default function ObjectiveDetailPage() {
           if (documents.length > 0) {
             setUploadedDocumentsForEvidence(documents);
             console.log(`[Source Documents] Loaded ${documents.length} saved documents for ${objective.code}`);
+          }
+
+          // Convert database records to GoogleDriveLink format
+          const gdriveLinks = result.data
+            .filter(record => record.source_type === 'gdrive')
+            .map(record => recordToGoogleDriveLink(record));
+
+          if (gdriveLinks.length > 0) {
+            setGoogleDriveLinks(gdriveLinks);
+            console.log(`[Source Documents] Loaded ${gdriveLinks.length} Google Drive links for ${objective.code}`);
           }
         }
       } catch (error) {
@@ -3245,9 +3257,34 @@ Provide only the Hindi explanation, no English text. The explanation should be c
     // Extract content from Google Drive
     try {
       const extractedData = await extractFromGoogleDrive(googleDriveUrlInput);
-      setGoogleDriveLinks(prev =>
-        prev.map(l => l.id === newLink.id ? { ...l, status: 'extracted', extractedData } : l)
+
+      // Save to database after successful extraction
+      const saveResult = await saveGoogleDriveLink(
+        objective?.code || '',
+        googleDriveUrlInput,
+        parsed.documentId,
+        parsed.docType,
+        extractedData
       );
+
+      if (saveResult.success && saveResult.record) {
+        // Update with database ID for persistence
+        setGoogleDriveLinks(prev =>
+          prev.map(l => l.id === newLink.id ? {
+            ...l,
+            id: saveResult.record!.id, // Use database ID
+            status: 'extracted',
+            extractedData
+          } : l)
+        );
+        console.log(`[Google Drive] Saved link to database: ${saveResult.record.id}`);
+      } else {
+        // Still update state even if save failed
+        setGoogleDriveLinks(prev =>
+          prev.map(l => l.id === newLink.id ? { ...l, status: 'extracted', extractedData } : l)
+        );
+        console.warn('[Google Drive] Failed to save to database:', saveResult.error);
+      }
     } catch (error) {
       setGoogleDriveLinks(prev =>
         prev.map(l => l.id === newLink.id ? { ...l, status: 'error', error: error instanceof Error ? error.message : 'Failed to fetch document' } : l)
@@ -3286,9 +3323,26 @@ Provide only the Hindi explanation, no English text. The explanation should be c
     }
   };
 
-  // Remove Google Drive link
-  const handleRemoveGoogleDriveLink = (linkId: string) => {
+  // Remove Google Drive link (also deletes from database if persisted)
+  const handleRemoveGoogleDriveLink = async (linkId: string) => {
+    const linkToRemove = googleDriveLinks.find(l => l.id === linkId);
+
+    // Remove from local state immediately
     setGoogleDriveLinks(prev => prev.filter(l => l.id !== linkId));
+
+    // Delete from database if it's a persisted link (UUID format)
+    if (linkToRemove && linkId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      try {
+        const deleteResult = await deleteSourceDocument(linkId, linkToRemove.url);
+        if (deleteResult.success) {
+          console.log(`[Google Drive] Deleted link from database: ${linkId}`);
+        } else {
+          console.warn('[Google Drive] Failed to delete from database:', deleteResult.error);
+        }
+      } catch (error) {
+        console.warn('[Google Drive] Error deleting from database:', error);
+      }
+    }
   };
 
   // Generate evidence from uploaded documents (formats extracted content as NABH document)
