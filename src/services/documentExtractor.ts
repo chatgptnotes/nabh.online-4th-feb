@@ -811,11 +811,7 @@ export const filterRelevantContent = async (
 ): Promise<{ success: boolean; filteredText?: string; error?: string }> => {
   console.log('[filterRelevantContent] Starting filter for objective:', objectiveCode);
 
-  const geminiApiKey = getGeminiApiKey();
-  if (!geminiApiKey) {
-    console.error('[filterRelevantContent] Gemini API key not configured');
-    return { success: false, error: 'Gemini API key not configured' };
-  }
+  // Using secure backend proxy - no API key needed in frontend
 
   if (!oldSOPText || oldSOPText.trim().length === 0) {
     return { success: false, error: 'No old SOP text provided to filter' };
@@ -849,29 +845,8 @@ Return only the filtered relevant content, organized clearly. No explanations or
 
     const prompt = customFilterPrompt || defaultPrompt;
 
-    console.log('[filterRelevantContent] Calling Gemini API...');
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.3, // Lower temperature for more deterministic extraction
-            maxOutputTokens: 8192,
-          },
-        }),
-      }
-    );
-
-    console.log('[filterRelevantContent] Gemini API response status:', response.status);
-    const data = await response.json();
-
-    if (data.error) {
-      console.error('[filterRelevantContent] Gemini API error:', data.error);
-      return { success: false, error: data.error.message || 'Gemini API error' };
-    }
+    console.log('[filterRelevantContent] Calling secure backend proxy...');
+    const data = await callGeminiAPI(prompt, 0.3, 8192);
 
     const filteredText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     console.log('[filterRelevantContent] Filtered text length:', filteredText.length);
