@@ -568,11 +568,7 @@ export const generateSOPFromContent = async (
 ): Promise<{ success: boolean; sop: string; error?: string }> => {
   console.log('[generateSOPFromContent] Starting SOP generation for chapter:', chapterCode);
 
-  const geminiApiKey = getGeminiApiKey();
-  if (!geminiApiKey) {
-    console.error('[generateSOPFromContent] Gemini API key not configured');
-    return { success: false, sop: '', error: 'Gemini API key not configured' };
-  }
+  // Using secure backend proxy - no API key needed in frontend
 
   const today = new Date();
   const effectiveDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -751,29 +747,8 @@ Use EXACTLY this HTML template structure (fill in the content sections):
 
 Generate the complete HTML document with all sections filled with relevant, professional content based on the provided interpretation and source content. Return ONLY the HTML, no markdown or explanations.`;
 
-    console.log('[generateSOPFromContent] Calling Gemini API...');
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 8192,
-          },
-        }),
-      }
-    );
-
-    console.log('[generateSOPFromContent] Gemini API response status:', response.status);
-    const data = await response.json();
-
-    if (data.error) {
-      console.error('[generateSOPFromContent] Gemini API error:', data.error);
-      return { success: false, sop: '', error: data.error.message || 'Gemini API error' };
-    }
+    console.log('[generateSOPFromContent] Calling secure backend proxy...');
+    const data = await callGeminiAPI(prompt, 0.7, 8192);
 
     let sop = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
