@@ -94,6 +94,9 @@ export default function RecentSOPsPage() {
   const [modifyPrompt, setModifyPrompt] = useState<string>('');
   const [applyingChanges, setApplyingChanges] = useState(false);
 
+  // Combined Filter Input (F1 + F3 + F4 + Filter Prompt)
+  const [combinedFilterInput, setCombinedFilterInput] = useState<string>('');
+
 
   const showSnackbar = (message: string, severity: 'success' | 'error') => {
     setSnackbar({ open: true, message, severity });
@@ -760,17 +763,6 @@ export default function RecentSOPsPage() {
                     ))}
                 </Select>
               </FormControl>
-              <Button
-                size="small"
-                variant="contained"
-                color="secondary"
-                startIcon={filteringContent ? <CircularProgress size={14} color="inherit" /> : <FilterIcon />}
-                onClick={handleRunFilter}
-                disabled={filteringContent || !oldSOPText || !selectedObjective}
-                sx={{ fontSize: '0.75rem' }}
-              >
-                Run Filter
-              </Button>
             </Box>
           </Box>
           <Box sx={{ p: 1 }}>
@@ -779,6 +771,49 @@ export default function RecentSOPsPage() {
               onChange={(e) => setFilterPrompt(e.target.value)}
               placeholder="Optional: Custom filter instructions. Default: Extract only relevant sentences from F1 that match the selected objective..."
               style={{ ...textareaStyle, height: '60px' }}
+            />
+          </Box>
+          <Box sx={{ p: 1, borderTop: '1px solid #eee' }}>
+            <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+              <Button
+                size="small"
+                variant="contained"
+                color="primary"
+                onClick={() => {
+                  const combined = `=== F1: SOP Extracted Text ===
+${oldSOPText || 'No F1 data'}
+
+=== F3: Title ===
+${objectiveTitle || 'No title'}
+
+=== F4: Interpretation ===
+${interpretation || 'No interpretation'}
+
+=== AI Filter Prompt ===
+${filterPrompt || 'No filter prompt'}`;
+                  setCombinedFilterInput(combined);
+                }}
+                sx={{ fontSize: '0.75rem' }}
+              >
+                Fetch All
+              </Button>
+              <Button
+                size="small"
+                variant="contained"
+                color="error"
+                startIcon={filteringContent ? <CircularProgress size={14} color="inherit" /> : <FilterIcon />}
+                onClick={handleRunFilter}
+                disabled={filteringContent || !oldSOPText || !selectedObjective}
+                sx={{ fontSize: '0.75rem' }}
+              >
+                {filteringContent ? 'Running...' : 'Run'}
+              </Button>
+            </Box>
+            <textarea
+              value={combinedFilterInput}
+              onChange={(e) => setCombinedFilterInput(e.target.value)}
+              placeholder="Click 'Fetch All' to combine F1 + F3 + F4 + Filter Prompt..."
+              style={{ ...textareaStyle, height: '150px' }}
             />
           </Box>
         </Paper>

@@ -795,30 +795,32 @@ export const filterRelevantContent = async (
   }
 
   try {
-    const defaultPrompt = `You are a NABH SOP Designer and Content Filter Expert.
+    const defaultPrompt = `You are a Hospital Information Extractor.
 
-## YOUR TASK
-From the OLD SOP TEXT below, extract ONLY the sentences/paragraphs that are DIRECTLY RELEVANT to the given objective element from NABH 3rd Edition.
+TASK: From the OLD SOP TEXT, extract ONLY 4-5 sentences containing HOSPITAL-SPECIFIC information related to the objective.
 
-## OBJECTIVE ELEMENT DETAILS
-- Code: ${objectiveCode}
-- Title: ${objectiveTitle}
-- Interpretation: ${interpretation}
+OBJECTIVE: ${objectiveCode} - ${objectiveTitle}
+INTERPRETATION: ${interpretation}
 
-## OLD SOP TEXT (1st & 2nd Edition)
+OLD SOP TEXT:
 ${oldSOPText}
 
-## INSTRUCTIONS
-1. Read through the entire old SOP text carefully
-2. Identify sentences, paragraphs, or sections that relate to the objective
-3. Extract ONLY relevant content - do not add new content
-4. Maintain the original wording and structure of extracted content
-5. If a procedure/step is relevant, include it completely
-6. Group related content together logically
-7. If no relevant content is found, state "No directly relevant content found in the old SOP text."
+EXTRACT ONLY (4-5 bullet points):
+- Staff names and designations (e.g., "Dr. Murali BK - Chief Orthopedic Surgeon")
+- Department names (e.g., "Orthopedic Department", "OPD Wing")
+- Hospital-specific rules/policies
+- Equipment/resources with brand names (e.g., "Digital X-Ray - Siemens")
+- Location details (building, floor, wing)
+- Contact information
+- Timing/schedules specific to this hospital
 
-## OUTPUT FORMAT
-Return only the filtered relevant content, organized clearly. No explanations or headers needed.`;
+DO NOT INCLUDE:
+- Generic healthcare statements like "We provide quality care"
+- Template text
+- NABH standard definitions
+- Any content not specific to THIS hospital
+
+OUTPUT: Exactly 4-5 bullet points of hospital-specific data only. If no hospital-specific data found, write "No hospital-specific information found in F1."`;
 
     const prompt = customFilterPrompt || defaultPrompt;
 
