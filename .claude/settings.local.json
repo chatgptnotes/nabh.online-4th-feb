@@ -4,7 +4,13 @@
       "Bash(curl:*)",
       "Bash(npm run dev:*)",
       "Bash(timeout:*)",
-      "Bash(npm run build:*)"
+      "Bash(ls:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run build:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }
