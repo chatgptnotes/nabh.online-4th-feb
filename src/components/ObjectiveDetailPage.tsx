@@ -294,6 +294,11 @@ export default function ObjectiveDetailPage() {
   const chapter = chapters.find((c) => c.id === chapterId || c.code.toLowerCase() === chapterId?.toLowerCase());
   const objective = chapter?.objectives.find((o) => o.id === objectiveId || o.code === objectiveId || o.code.toLowerCase().replace(/\./g, '-') === objectiveId?.toLowerCase());
 
+  // Compute previous/next objectives for navigation
+  const currentIndex = chapter?.objectives.findIndex((o) => o.id === objective?.id) ?? -1;
+  const prevObjective = currentIndex > 0 ? chapter?.objectives[currentIndex - 1] : null;
+  const nextObjective = chapter && currentIndex < chapter.objectives.length - 1 ? chapter.objectives[currentIndex + 1] : null;
+
   // Set selected chapter when page loads
   useEffect(() => {
     if (chapterId) {
@@ -3525,6 +3530,33 @@ Provide only the Hindi explanation, no English text. The explanation should be c
             >
               Back
             </Button>
+            {/* Previous / Next navigation */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Tooltip title={prevObjective ? `Previous: ${prevObjective.code}` : 'No previous objective'}>
+                <span>
+                  <IconButton
+                    size="small"
+                    disabled={!prevObjective}
+                    onClick={() => prevObjective && navigate(`/objective/${chapter!.id}/${prevObjective.code}`)}
+                    sx={{ border: '1px solid', borderColor: 'divider' }}
+                  >
+                    <Icon>chevron_left</Icon>
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title={nextObjective ? `Next: ${nextObjective.code}` : 'No next objective'}>
+                <span>
+                  <IconButton
+                    size="small"
+                    disabled={!nextObjective}
+                    onClick={() => nextObjective && navigate(`/objective/${chapter!.id}/${nextObjective.code}`)}
+                    sx={{ border: '1px solid', borderColor: 'divider' }}
+                  >
+                    <Icon>chevron_right</Icon>
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </Box>
             <Icon color="primary" sx={{ fontSize: 32 }}>description</Icon>
             <Typography variant="h5" fontWeight={600}>
               {objective.code}
