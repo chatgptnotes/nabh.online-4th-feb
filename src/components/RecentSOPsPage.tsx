@@ -998,15 +998,17 @@ Examples:
               )}
             </Box>
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-              <IconButton
+              <Button
                 size="small"
+                variant="outlined"
                 color="primary"
+                startIcon={isSaving ? <CircularProgress size={14} /> : <SaveIcon />}
                 onClick={handleSaveToDB}
                 disabled={isSaving || !finalSOP}
-                title="Save to DB"
+                sx={{ fontSize: '0.7rem', whiteSpace: 'nowrap', py: 0.5, px: 1 }}
               >
-                {isSaving ? <CircularProgress size={16} /> : <SaveIcon fontSize="small" />}
-              </IconButton>
+                {isSaving ? 'Saving...' : 'Save Doc'}
+              </Button>
               <Button
                 size="small"
                 variant="contained"
