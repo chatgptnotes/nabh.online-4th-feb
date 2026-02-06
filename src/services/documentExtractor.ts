@@ -580,7 +580,7 @@ export const generateSOPFromContent = async (
 
   // Use actual Hope Hospital logo and signature images - relative paths work in iframe
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-  const logoUrl = `${baseUrl}/hospital-logo.png`;
+  const logoUrl = `${baseUrl}/assets/hope-hospital-logo.png`;
   const sonaliSignature = `${baseUrl}/Sonali's signature.png`;
   const gauravSignature = `${baseUrl}/Gaurav's signature.png`;
   const shirazSignature = `${baseUrl}/Dr shiraz's signature.png`;
@@ -612,12 +612,12 @@ Use EXACTLY this HTML template structure (fill in the content sections):
   <meta charset="UTF-8">
   <title>SOP - ${objectiveCode || chapterCode} - Hope Hospital</title>
   <style>
-    * { margin: 0 !important; padding: 0; box-sizing: border-box; } html, body { margin-top: 0 !important; padding-top: 0 !important; }
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 12px; line-height: 1.6; color: #333; padding: 0 15px 15px; max-width: 800px; margin: 0 auto; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 14px; line-height: 1.6; color: #333; padding: 0 15px 15px; width: 100%; max-width: 800px; margin-left: auto !important; margin-right: auto !important; }
     .header { text-align: center; border-bottom: 3px solid #1565C0; padding-bottom: 5px; margin-bottom: 15px; margin-top: 0 !important; padding-top: 0 !important; line-height: 1; }
     .logo { width: 180px; height: auto; margin: 0 auto !important; padding: 0 !important; display: block; vertical-align: top; }
-    .hospital-address { font-size: 11px; color: #666; margin: 0 !important; padding: 0 !important; line-height: 1.2; }
-    .doc-title { background: linear-gradient(135deg, #1565C0, #0D47A1); color: white; padding: 12px; font-size: 16px; font-weight: bold; text-align: center; margin: 20px 0; border-radius: 5px; }
+    .hospital-address { font-size: 13px; color: #666; margin: 0 !important; padding: 0 !important; line-height: 1.2; }
+    .doc-title { background: linear-gradient(135deg, #1565C0, #0D47A1); color: white; padding: 12px; font-size: 20px; font-weight: bold; text-align: center; margin: 20px 0; border-radius: 5px; }
     .info-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
     .info-table th, .info-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
     .info-table th { background: #f5f5f5; font-weight: 600; width: 25%; }
@@ -625,30 +625,30 @@ Use EXACTLY this HTML template structure (fill in the content sections):
     .auth-table th { background: linear-gradient(135deg, #1565C0, #0D47A1); color: white; padding: 10px; text-align: center; }
     .auth-table td { border: 1px solid #ddd; padding: 15px; text-align: center; vertical-align: top; }
     .signature-box { margin-top: 10px; padding: 8px; border: 1px solid #1565C0; border-radius: 5px; background: #f8f9fa; }
-    .signature-name { font-weight: bold; color: #1565C0; font-size: 14px; }
-    .signature-line { font-family: 'Brush Script MT', cursive; font-size: 18px; color: #0D47A1; margin: 5px 0; }
-    .section { margin: 20px 0; }
+    .signature-name { font-weight: bold; color: #1565C0; font-size: 16px; }
+    .signature-line { font-family: 'Brush Script MT', cursive; font-size: 22px; color: #0D47A1; margin: 5px 0; }
+    .section { margin: 20px 0; page-break-inside: avoid; }
     .section-title { background: #e3f2fd; padding: 8px 12px; font-weight: bold; color: #1565C0; border-left: 4px solid #1565C0; margin-bottom: 10px; }
-    .section-content { padding: 10px 15px; }
+    .section-content { padding: 10px 15px; page-break-inside: avoid; }
     .section-content ul { margin-left: 20px; }
-    .section-content li { margin: 5px 0; }
-    .procedure-step { margin: 10px 0; padding: 10px; background: #fafafa; border-radius: 5px; border-left: 3px solid #1565C0; }
+    .section-content li { margin: 5px 0; page-break-inside: avoid; }
+    .procedure-step { margin: 10px 0; padding: 10px; background: #fafafa; border-radius: 5px; border-left: 3px solid #1565C0; page-break-inside: avoid; }
     .step-number { display: inline-block; width: 25px; height: 25px; background: #1565C0; color: white; border-radius: 50%; text-align: center; line-height: 25px; margin-right: 10px; font-weight: bold; }
     .data-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
     .data-table th { background: #1565C0; color: white; padding: 10px; text-align: left; }
     .data-table td { border: 1px solid #ddd; padding: 8px; }
     .data-table tr:nth-child(even) { background: #f9f9f9; }
-    .footer { margin-top: 30px; padding-top: 15px; border-top: 2px solid #1565C0; text-align: center; font-size: 10px; color: #666; }
-    .revision-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 11px; }
+    .footer { margin-top: 30px; padding-top: 15px; border-top: 2px solid #1565C0; text-align: center; font-size: 12px; color: #666; }
+    .revision-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; }
     .revision-table th { background: #455a64; color: white; padding: 8px; }
     .revision-table td { border: 1px solid #ddd; padding: 8px; }
     .stamp-area { border: 2px dashed #1565C0; border-radius: 10px; padding: 15px; text-align: center; margin: 20px 0; background: #f8f9fa; }
-    .stamp-text { font-weight: bold; color: #1565C0; font-size: 14px; }
-    @media print { body { padding: 0; } .no-print { display: none; } }
+    .stamp-text { font-weight: bold; color: #1565C0; font-size: 16px; }
+    @media print { body { padding: 0; max-width: 100%; margin: 0 auto; } .no-print { display: none; } @page { margin: 20mm; size: A4; } .section, .section-content, .procedure-step, .info-table, .auth-table, .data-table, tr { page-break-inside: avoid; } }
   </style>
 </head>
 <body>
-  <div style="font-size: 24px; font-weight: bold; color: #1565C0; margin-bottom: 10px;">SOP</div>
+  <div style="font-size: 28px; font-weight: bold; color: #1565C0; margin-bottom: 10px;">SOP</div>
   <div class="header">
     <img src="${logoUrl}" alt="Dr. Murali's Hope Hospital" class="logo" style="width: 180px; height: auto; display: block; margin: 0 auto !important; padding: 0 !important; vertical-align: top;">
     <div class="hospital-address">2, Teka Naka, Nagpur, Maharashtra 440022 | Phone: +91 9823555053 | Email: info@hopehospital.com</div>

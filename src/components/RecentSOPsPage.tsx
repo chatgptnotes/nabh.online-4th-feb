@@ -386,7 +386,7 @@ export default function RecentSOPsPage() {
         document.body.appendChild(container);
 
         pdfBlob = await html2pdf().set({
-          margin: [2, 10, 10, 10],
+          margin: [15, 10, 15, 10],  // 15mm top/bottom, 10mm left/right
           image: { type: 'jpeg', quality: 0.98 },
           html2canvas: { scale: 2, useCORS: true },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
@@ -441,7 +441,7 @@ export default function RecentSOPsPage() {
       document.body.appendChild(container);
 
       await html2pdf().set({
-        margin: [2, 10, 10, 10],
+        margin: [15, 10, 15, 10],  // 15mm top/bottom, 10mm left/right
         filename: `SOP-${selectedChapterCode}-${selectedObjective || 'General'}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true },
@@ -868,7 +868,7 @@ export default function RecentSOPsPage() {
                 startIcon={generatingSOP ? <CircularProgress size={14} color="inherit" /> : <GenerateIcon />}
                 onClick={handleGenerateSOP}
                 disabled={generatingSOP || !mergedContent}
-                sx={{ fontSize: '0.75rem' }}
+                sx={{ fontSize: '0.7rem', whiteSpace: 'nowrap', py: 0.5, px: 1 }}
               >
                 Generate SOP
               </Button>
@@ -879,7 +879,7 @@ export default function RecentSOPsPage() {
                 startIcon={generatingPDF ? <CircularProgress size={14} color="inherit" /> : <DownloadIcon />}
                 onClick={handleGeneratePDF}
                 disabled={generatingPDF || !finalSOP}
-                sx={{ fontSize: '0.75rem' }}
+                sx={{ fontSize: '0.7rem', whiteSpace: 'nowrap', py: 0.5, px: 1 }}
               >
                 PDF
               </Button>
@@ -890,7 +890,7 @@ export default function RecentSOPsPage() {
                 startIcon={<EditIcon />}
                 onClick={() => { setIsTextEditing(!isTextEditing); setIsEditingFinalSOP(false); }}
                 disabled={!finalSOP}
-                sx={{ fontSize: '0.75rem' }}
+                sx={{ fontSize: '0.7rem', whiteSpace: 'nowrap', py: 0.5, px: 1 }}
               >
                 {isTextEditing ? 'Done' : 'Text Edit'}
               </Button>
@@ -900,7 +900,7 @@ export default function RecentSOPsPage() {
                 color={isEditingFinalSOP ? "warning" : "info"}
                 onClick={() => { setIsEditingFinalSOP(!isEditingFinalSOP); setIsTextEditing(false); }}
                 disabled={!finalSOP}
-                sx={{ fontSize: '0.75rem' }}
+                sx={{ fontSize: '0.7rem', whiteSpace: 'nowrap', py: 0.5, px: 1 }}
               >
                 {isEditingFinalSOP ? 'Preview' : 'Code'}
               </Button>
@@ -911,7 +911,7 @@ export default function RecentSOPsPage() {
                 startIcon={<ChatIcon />}
                 onClick={handleStartImprovement}
                 disabled={!finalSOP}
-                sx={{ fontSize: '0.75rem' }}
+                sx={{ fontSize: '0.7rem', whiteSpace: 'nowrap', py: 0.5, px: 1 }}
               >
                 Improve SOP
               </Button>
