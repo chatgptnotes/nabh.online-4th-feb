@@ -4,7 +4,7 @@
  */
 
 import * as XLSX from 'xlsx';
-import { callGeminiAPI, callGeminiVisionAPI } from '../lib/supabase';
+import { callGeminiAPI, callGeminiVisionAPI, getGeminiApiKey } from '../lib/supabase';
 import { getRelevantData } from './hopeHospitalDatabase';
 import { generateDocumentNumber, getFormattedDate, getReviewDate } from '../utils/documentNumbering';
 import type {
