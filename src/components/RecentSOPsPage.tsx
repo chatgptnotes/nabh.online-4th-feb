@@ -79,6 +79,7 @@ export default function RecentSOPsPage() {
   const [isTextEditing, setIsTextEditing] = useState(false);
   const [sopPrompts, setSOPPrompts] = useState<any[]>([]);
   const [selectedPromptId, setSelectedPromptId] = useState<string>('');
+  const [selectedFilterPromptId, setSelectedFilterPromptId] = useState<string>('');
 
   // SOP Improvement Chat
   const [showImprovementChat, setShowImprovementChat] = useState(false);
@@ -109,16 +110,27 @@ export default function RecentSOPsPage() {
       const result = await loadAllSOPPrompts();
       if (result.success && result.data && result.data.length > 0) {
         setSOPPrompts(result.data);
-        setFilterPrompt(result.data[0].prompt);
-        
+
+        // Set default selection for AI Filter Prompt dropdown
+        const defaultFilterPrompt = result.data.find(p =>
+          p.title?.toLowerCase().includes('ai filter') ||
+          p.title?.toLowerCase().includes('filter')
+        );
+
+        if (defaultFilterPrompt) {
+          setSelectedFilterPromptId(defaultFilterPrompt.id);
+          setFilterPrompt(defaultFilterPrompt.prompt);
+        } else {
+          setFilterPrompt(result.data[0].prompt);
+        }
+
         // Set default selection for Final Prompt dropdown
-        // Find the first prompt with "SOP Generation" or similar in the title, or use the first one
-        const defaultPrompt = result.data.find(p => 
-          p.title?.toLowerCase().includes('sop generation') || 
+        const defaultPrompt = result.data.find(p =>
+          p.title?.toLowerCase().includes('sop generation') ||
           p.title?.toLowerCase().includes('generation') ||
           p.title?.toLowerCase().includes('instructions')
         ) || result.data[0];
-        
+
         if (defaultPrompt) {
           setSelectedPromptId(defaultPrompt.id);
           setFinalPrompt(defaultPrompt.prompt);
@@ -127,6 +139,15 @@ export default function RecentSOPsPage() {
     };
     fetchPrompts();
   }, []);
+
+  // Handle prompt selection for AI Filter Prompt
+  const handleFilterPromptSelect = (promptId: string) => {
+    setSelectedFilterPromptId(promptId);
+    const selected = sopPrompts.find(p => p.id === promptId);
+    if (selected) {
+      setFilterPrompt(selected.prompt);
+    }
+  };
 
   // Handle prompt selection for Final Prompt
   const handlePromptSelect = (promptId: string) => {
@@ -715,18 +736,42 @@ export default function RecentSOPsPage() {
         {/* AI Filter Prompt */}
         <Paper elevation={1} sx={{ border: '1px solid #ccc', borderRadius: 1 }}>
           <Box sx={{ p: 1, borderBottom: '1px solid #ccc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#fce4ec' }}>
-            <Typography variant="subtitle2" fontWeight="bold">AI Filter Prompt (Extract relevant from F1)</Typography>
-            <Button
-              size="small"
-              variant="contained"
-              color="secondary"
-              startIcon={filteringContent ? <CircularProgress size={14} color="inherit" /> : <FilterIcon />}
-              onClick={handleRunFilter}
-              disabled={filteringContent || !oldSOPText || !selectedObjective}
-              sx={{ fontSize: '0.75rem' }}
-            >
-              Run Filter
-            </Button>
+            <Box>
+              <Typography variant="subtitle2" fontWeight="bold">AI Filter Prompt (Extract relevant from F1)</Typography>
+              {selectedFilterPromptId && (
+                <Typography variant="caption" color="success.main" sx={{ display: 'block', fontSize: '0.75rem' }}>
+                  ✅ Default filter prompt auto-applied
+                </Typography>
+              )}
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              <FormControl size="small" sx={{ minWidth: 180 }}>
+                <Select
+                  value={selectedFilterPromptId}
+                  onChange={(e) => handleFilterPromptSelect(e.target.value)}
+                  displayEmpty
+                  sx={{ fontSize: '0.8rem', bgcolor: '#fff' }}
+                >
+                  <MenuItem value="" disabled>-- Select Prompt --</MenuItem>
+                  {sopPrompts
+                    .filter(p => p.title?.toLowerCase().includes('filter'))
+                    .map((p) => (
+                      <MenuItem key={p.id} value={p.id}>{p.title}</MenuItem>
+                    ))}
+                </Select>
+              </FormControl>
+              <Button
+                size="small"
+                variant="contained"
+                color="secondary"
+                startIcon={filteringContent ? <CircularProgress size={14} color="inherit" /> : <FilterIcon />}
+                onClick={handleRunFilter}
+                disabled={filteringContent || !oldSOPText || !selectedObjective}
+                sx={{ fontSize: '0.75rem' }}
+              >
+                Run Filter
+              </Button>
+            </Box>
           </Box>
           <Box sx={{ p: 1 }}>
             <textarea
