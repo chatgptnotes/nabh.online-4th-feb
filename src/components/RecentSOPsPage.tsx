@@ -32,6 +32,7 @@ import { loadAllSOPPrompts } from '../services/sopPromptStorage';
 import { supabase } from '../lib/supabase';
 import SOPImprovementChat from './SOPImprovementChat';
 import { saveSOPDocument, getSOPsByChapter, deleteSOPDocument, getSOPById, type SOPDocument } from '../services/sopDocumentStorage';
+import { uploadAndSaveSOP } from '../services/sopGeneratedStorage';
 
 export default function RecentSOPsPage() {
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
@@ -342,35 +343,55 @@ export default function RecentSOPsPage() {
     showSnackbar(`${label} copied!`, 'success');
   };
 
-  // Save to database (legacy method - will also save to new SOP documents table)
+  // Save to database with PDF upload to bucket
   const handleSaveToDB = async () => {
-    if (!finalSOP || !selectedChapterId) {
-      showSnackbar('Ensure chapter is selected and SOP generated.', 'error');
+    if (!finalSOP || !selectedChapterId || !selectedObjective) {
+      showSnackbar('Ensure chapter and objective are selected and SOP generated.', 'error');
       return;
     }
 
     setIsSaving(true);
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      
-      // Save to legacy table
-      const { error: legacyError } = await supabase
-        .from('nabh_chapter_data')
-        .insert([{
-          chapter_id: selectedChapterId,
-          objective_code: selectedObjective || null,
-          data_type: 'final_sop',
-          content: finalSOP,
-          title: objectiveTitle,
-          created_by: userData.user?.email || 'System'
-        }]);
+      // Step 1: Generate PDF Blob
+      let pdfBlob: Blob | undefined;
+      try {
+        const html2pdf = (await import('html2pdf.js')).default;
+        const container = document.createElement('div');
+        container.innerHTML = finalSOP;
+        document.body.appendChild(container);
 
-      if (legacyError) throw legacyError;
+        pdfBlob = await html2pdf().set({
+          margin: [2, 10, 10, 10],
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        }).from(container).outputPdf('blob');
 
-      // Also save to new SOP documents table for better management
-      await handleSaveSOPToDatabase();
-      
+        document.body.removeChild(container);
+      } catch (pdfError) {
+        console.warn('PDF generation failed, saving without PDF:', pdfError);
+      }
+
+      // Step 2: Upload PDF + Save to nabh_generated_sops table
+      const result = await uploadAndSaveSOP({
+        chapter_id: selectedChapterId,
+        chapter_code: selectedChapterCode,
+        chapter_name: getChapterName(selectedChapterId),
+        objective_code: selectedObjective,
+        objective_title: objectiveTitle,
+        f3_title: objectiveTitle,
+        f4_interpretation: interpretation,
+        sop_html_content: finalSOP,
+      }, pdfBlob);
+
+      if (result.success) {
+        showSnackbar(`SOP saved successfully!${result.pdfUrl ? ' PDF uploaded.' : ''}`, 'success');
+      } else {
+        throw new Error(result.error || 'Failed to save SOP');
+      }
+
     } catch (error) {
+      console.error('Error saving SOP:', error);
       showSnackbar('Error saving SOP', 'error');
     } finally {
       setIsSaving(false);
@@ -499,7 +520,7 @@ export default function RecentSOPsPage() {
     try {
       const sopData = {
         chapter_code: selectedChapterCode,
-        chapter_name: selectedChapterName,
+        chapter_name: getChapterName(selectedChapterId),
         title: objectiveTitle,
         description: `SOP for ${objectiveTitle} - Generated from Recent SOPs workflow`,
         extracted_content: finalSOP,
