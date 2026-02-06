@@ -32,7 +32,7 @@ import { loadObjectiveEditsByChapter } from '../services/objectiveStorage';
 import { loadAllSOPPrompts } from '../services/sopPromptStorage';
 import { supabase } from '../lib/supabase';
 import SOPImprovementChat from './SOPImprovementChat';
-import { uploadAndSaveSOP } from '../services/sopGeneratedStorage';
+import { uploadAndSaveSOP, getGeneratedSOPsByChapter, type GeneratedSOP } from '../services/sopGeneratedStorage';
 import { useNavigate } from 'react-router-dom';
 
 export default function RecentSOPsPage() {
@@ -83,6 +83,10 @@ export default function RecentSOPsPage() {
   const [showImprovementChat, setShowImprovementChat] = useState(false);
   const [sopVersions, setSOPVersions] = useState<Array<{id: string, version: string, content: string, timestamp: Date}>>([]);
   const [currentVersion, setCurrentVersion] = useState<string>('1.0');
+
+  // Existing SOP from database
+  const [existingSOP, setExistingSOP] = useState<GeneratedSOP | null>(null);
+  const [checkingExistingSOP, setCheckingExistingSOP] = useState(false);
 
 
   const showSnackbar = (message: string, severity: 'success' | 'error') => {
@@ -165,7 +169,7 @@ export default function RecentSOPsPage() {
   };
 
   // Auto-populate F3 and F4 when objective is selected
-  const handleObjectiveChange = (objectiveCode: string) => {
+  const handleObjectiveChange = async (objectiveCode: string) => {
     setSelectedObjective(objectiveCode);
     const obj = objectives.find(o => o.objective_code === objectiveCode);
     if (obj) {
@@ -179,6 +183,36 @@ export default function RecentSOPsPage() {
     setFilteredContent('');
     setMergedContent('');
     setFinalSOP('');
+    setExistingSOP(null);
+
+    // Check for existing SOP in nabh_generated_sops table
+    if (objectiveCode && selectedChapterCode) {
+      setCheckingExistingSOP(true);
+      try {
+        const { data, error } = await supabase
+          .from('nabh_generated_sops')
+          .select('*')
+          .eq('chapter_code', selectedChapterCode)
+          .eq('objective_code', objectiveCode)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (data && !error) {
+          setExistingSOP(data);
+          // Load existing SOP content into finalSOP
+          if (data.sop_html_content) {
+            setFinalSOP(data.sop_html_content);
+          }
+          showSnackbar(`✅ Found existing SOP for ${objectiveCode}${data.pdf_url ? ' (PDF available)' : ''}`, 'success');
+        }
+      } catch (err) {
+        // No existing SOP found - this is normal
+        console.log('No existing SOP found for', objectiveCode);
+      } finally {
+        setCheckingExistingSOP(false);
+      }
+    }
   };
 
   // F1: Extract old SOP text
@@ -782,8 +816,41 @@ export default function RecentSOPsPage() {
 
         {/* Final SOP Result */}
         <Paper elevation={1} sx={{ border: '1px solid #ccc', borderRadius: 1 }}>
-          <Box sx={{ p: 1, borderBottom: '1px solid #ccc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#c8e6c9' }}>
-            <Typography variant="subtitle2" fontWeight="bold">Final SOP Result</Typography>
+          <Box sx={{ p: 1, borderBottom: '1px solid #ccc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: existingSOP ? '#bbdefb' : '#c8e6c9' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="subtitle2" fontWeight="bold">Final SOP Result</Typography>
+              {checkingExistingSOP && (
+                <CircularProgress size={16} />
+              )}
+              {existingSOP && (
+                <>
+                  <Chip
+                    label="✅ Existing SOP Found"
+                    size="small"
+                    color="info"
+                    sx={{ height: 24 }}
+                  />
+                  <Chip
+                    label={`v${existingSOP.version}`}
+                    size="small"
+                    variant="outlined"
+                    sx={{ height: 24 }}
+                  />
+                  {existingSOP.pdf_url && (
+                    <Button
+                      size="small"
+                      variant="contained"
+                      color="error"
+                      startIcon={<PdfIcon />}
+                      onClick={() => window.open(existingSOP.pdf_url, '_blank')}
+                      sx={{ fontSize: '0.7rem', py: 0.5, height: 24 }}
+                    >
+                      Open PDF
+                    </Button>
+                  )}
+                </>
+              )}
+            </Box>
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
               <IconButton
                 size="small"
