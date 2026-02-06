@@ -571,9 +571,10 @@ export const generateSOPFromContent = async (
   // Using secure backend proxy - no API key needed in frontend
 
   const today = new Date();
-  const effectiveDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const reviewDate = new Date(today.getTime() + 365 * 24 * 60 * 60 * 1000);
+  const effectiveDate = new Date(2025, 8, 9); // Fixed: 09 Sept 2025
+  const reviewDate = new Date(effectiveDate.getFullYear() + 1, effectiveDate.getMonth(), effectiveDate.getDate()); // effectiveDate + 1 year
   const formatDate = (d: Date) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  const objectiveTitle = titlesInterpretation.split('\n')[0] || '';
 
   const docNo = `SOP-${chapterCode}-${objectiveCode ? objectiveCode.replace(/\./g, '-') : '001'}`;
 
@@ -613,9 +614,9 @@ Use EXACTLY this HTML template structure (fill in the content sections):
   <style>
     * { margin: 0 !important; padding: 0; box-sizing: border-box; } html, body { margin-top: 0 !important; padding-top: 0 !important; }
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 12px; line-height: 1.6; color: #333; padding: 0 15px 15px; max-width: 800px; margin: 0 auto; }
-    .header { text-align: center; border-bottom: 3px solid #1565C0; padding-bottom: 10px; margin-bottom: 20px; margin-top: 0 !important; padding-top: 0 !important; }
-    .logo { width: 180px; height: auto; margin: 0 auto 2px !important; display: block; }
-    .hospital-address { font-size: 11px; color: #666; margin-top: 5px; }
+    .header { text-align: center; border-bottom: 3px solid #1565C0; padding-bottom: 5px; margin-bottom: 15px; margin-top: 0 !important; padding-top: 0 !important; line-height: 1; }
+    .logo { width: 180px; height: auto; margin: 0 auto !important; padding: 0 !important; display: block; vertical-align: top; }
+    .hospital-address { font-size: 11px; color: #666; margin: 0 !important; padding: 0 !important; line-height: 1.2; }
     .doc-title { background: linear-gradient(135deg, #1565C0, #0D47A1); color: white; padding: 12px; font-size: 16px; font-weight: bold; text-align: center; margin: 20px 0; border-radius: 5px; }
     .info-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
     .info-table th, .info-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
@@ -647,12 +648,13 @@ Use EXACTLY this HTML template structure (fill in the content sections):
   </style>
 </head>
 <body>
+  <div style="font-size: 24px; font-weight: bold; color: #1565C0; margin-bottom: 10px;">SOP</div>
   <div class="header">
-    <img src="${logoUrl}" alt="Dr. Murali's Hope Hospital" class="logo" style="width: 180px; height: auto; display: block; margin: 0 auto;">
+    <img src="${logoUrl}" alt="Dr. Murali's Hope Hospital" class="logo" style="width: 180px; height: auto; display: block; margin: 0 auto !important; padding: 0 !important; vertical-align: top;">
     <div class="hospital-address">2, Teka Naka, Nagpur, Maharashtra 440022 | Phone: +91 9823555053 | Email: info@hopehospital.com</div>
   </div>
 
-  <div class="doc-title">STANDARD OPERATING PROCEDURE</div>
+  <div class="doc-title">SOP-${objectiveCode || chapterCode} - ${objectiveTitle}</div>
 
   <table class="info-table">
     <tr><th>Document No</th><td>${docNo}</td><th>Version</th><td>1.0</td></tr>
