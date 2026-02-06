@@ -218,6 +218,10 @@ export default function ObjectiveDetailPage() {
   // Track saved evidence item documents: item.id -> saved document ID
   const [savedEvidenceItemDocuments, setSavedEvidenceItemDocuments] = useState<Record<string, string>>({});
 
+  // State for loading and storing saved evidences
+  const [isLoadingEvidences, setIsLoadingEvidences] = useState(false);
+  const [savedEvidences, setSavedEvidences] = useState<GeneratedEvidence[]>([]);
+
   // State for registers section
   interface RegisterItem {
     id: string;
@@ -3703,11 +3707,11 @@ Provide only the Hindi explanation, no English text. The explanation should be c
                 variant="outlined"
                 color="secondary"
                 size="small"
-                startIcon={isGeneratingInterpretationEvidence ? <CircularProgress size={16} color="inherit" /> : <Icon>auto_awesome</Icon>}
-                disabled={isGeneratingInterpretationEvidence || !(objective.interpretations2 ?? objective.interpretation)?.trim()}
+                startIcon={isLoadingEvidences || isGeneratingInterpretationEvidence ? <CircularProgress size={16} color="inherit" /> : <Icon>auto_awesome</Icon>}
+                disabled={isLoadingEvidences || isGeneratingInterpretationEvidence || !(objective.interpretations2 ?? objective.interpretation)?.trim()}
                 onClick={handleGenerateEvidenceFromInterpretation}
               >
-                {isGeneratingInterpretationEvidence ? 'Generating...' : evidenceItemsAutoSaved ? 'Regenerate' : 'Generate 8 Evidence Items'}
+                {isLoadingEvidences ? 'Loading...' : isGeneratingInterpretationEvidence ? 'Generating...' : evidenceItemsAutoSaved ? 'Regenerate' : 'Generate 8 Evidence Items'}
               </Button>
               <Button
                 variant="outlined"
