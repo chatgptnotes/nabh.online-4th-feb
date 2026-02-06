@@ -441,44 +441,101 @@ export interface GeneratedEvidence {
 }
 
 /**
- * Save a generated evidence document to Supabase
+ * Save a generated evidence document to Supabase (upsert by objective_code + evidence_title)
+ * If evidence with same objective_code and evidence_title exists, it will be updated
  */
 export async function saveGeneratedEvidence(
   evidence: Omit<GeneratedEvidence, 'id' | 'created_at'>
 ): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
-    const response = await fetch(
-      `${SUPABASE_URL}/rest/v1/nabh_ai_generated_evidence`,
+    // First check if evidence already exists for this objective_code + evidence_title
+    const existingResponse = await fetch(
+      `${SUPABASE_URL}/rest/v1/nabh_ai_generated_evidence?objective_code=eq.${encodeURIComponent(evidence.objective_code)}&evidence_title=eq.${encodeURIComponent(evidence.evidence_title)}&select=id`,
       {
-        method: 'POST',
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'apikey': SUPABASE_ANON_KEY,
           'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          'Prefer': 'return=representation',
         },
-        body: JSON.stringify({
-          objective_code: evidence.objective_code,
-          evidence_title: evidence.evidence_title,
-          prompt: evidence.prompt,
-          generated_content: evidence.generated_content,
-          html_content: evidence.html_content,
-          evidence_type: evidence.evidence_type,
-          hospital_config: evidence.hospital_config,
-        }),
       }
     );
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Error saving evidence to Supabase:', response.status, errorText);
-      return { success: false, error: `${response.status}: ${errorText}` };
+    if (!existingResponse.ok) {
+      const errorText = await existingResponse.text();
+      console.error('Error checking existing evidence:', existingResponse.status, errorText);
+      return { success: false, error: `${existingResponse.status}: ${errorText}` };
     }
 
-    const data = await response.json();
-    const savedId = data[0]?.id;
+    const existingData = await existingResponse.json();
+    const existingId = existingData.length > 0 ? existingData[0].id : null;
 
-    return { success: true, id: savedId };
+    if (existingId) {
+      // Update existing evidence
+      const updateResponse = await fetch(
+        `${SUPABASE_URL}/rest/v1/nabh_ai_generated_evidence?id=eq.${existingId}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Prefer': 'return=representation',
+          },
+          body: JSON.stringify({
+            prompt: evidence.prompt,
+            generated_content: evidence.generated_content,
+            html_content: evidence.html_content,
+            evidence_type: evidence.evidence_type,
+            hospital_config: evidence.hospital_config,
+          }),
+        }
+      );
+
+      if (!updateResponse.ok) {
+        const errorText = await updateResponse.text();
+        console.error('Error updating evidence:', updateResponse.status, errorText);
+        return { success: false, error: `${updateResponse.status}: ${errorText}` };
+      }
+
+      console.log('Updated existing evidence:', existingId);
+      return { success: true, id: existingId };
+    } else {
+      // Insert new evidence
+      const insertResponse = await fetch(
+        `${SUPABASE_URL}/rest/v1/nabh_ai_generated_evidence`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Prefer': 'return=representation',
+          },
+          body: JSON.stringify({
+            objective_code: evidence.objective_code,
+            evidence_title: evidence.evidence_title,
+            prompt: evidence.prompt,
+            generated_content: evidence.generated_content,
+            html_content: evidence.html_content,
+            evidence_type: evidence.evidence_type,
+            hospital_config: evidence.hospital_config,
+          }),
+        }
+      );
+
+      if (!insertResponse.ok) {
+        const errorText = await insertResponse.text();
+        console.error('Error inserting evidence:', insertResponse.status, errorText);
+        return { success: false, error: `${insertResponse.status}: ${errorText}` };
+      }
+
+      const data = await insertResponse.json();
+      const savedId = data[0]?.id;
+      console.log('Inserted new evidence:', savedId);
+
+      return { success: true, id: savedId };
+    }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error saving evidence:', errorMessage);
