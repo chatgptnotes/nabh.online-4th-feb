@@ -594,6 +594,58 @@ export async function loadEvidenceById(
 }
 
 /**
+ * Load evidence counts and details for multiple objectives (for list view)
+ * Returns a map of objective_code -> array of evidence documents (only 'document' type, not 'custom')
+ */
+export async function loadEvidenceCountsForObjectives(
+  objectiveCodes: string[]
+): Promise<{ success: boolean; data?: Record<string, GeneratedEvidence[]>; error?: string }> {
+  if (objectiveCodes.length === 0) {
+    return { success: true, data: {} };
+  }
+
+  try {
+    // Fetch all document-type evidences for the given objective codes
+    const codesParam = objectiveCodes.map(c => `"${c}"`).join(',');
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/nabh_ai_generated_evidence?objective_code=in.(${codesParam})&evidence_type=eq.document&select=id,objective_code,evidence_title,evidence_type,created_at&order=created_at.desc`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error loading evidence counts:', response.status, errorText);
+      return { success: false, error: `${response.status}: ${errorText}` };
+    }
+
+    const data = await response.json();
+
+    // Group by objective_code
+    const grouped: Record<string, GeneratedEvidence[]> = {};
+    for (const evidence of data) {
+      const code = evidence.objective_code;
+      if (!grouped[code]) {
+        grouped[code] = [];
+      }
+      grouped[code].push(evidence as GeneratedEvidence);
+    }
+
+    return { success: true, data: grouped };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error loading evidence counts:', errorMessage);
+    return { success: false, error: errorMessage };
+  }
+}
+
+/**
  * Delete a generated evidence document
  */
 export async function deleteGeneratedEvidence(

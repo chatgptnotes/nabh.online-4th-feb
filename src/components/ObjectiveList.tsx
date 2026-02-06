@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
@@ -18,9 +19,20 @@ import IconButton from '@mui/material/IconButton';
 import Icon from '@mui/material/Icon';
 import Tooltip from '@mui/material/Tooltip';
 import CircularProgress from '@mui/material/CircularProgress';
+import Badge from '@mui/material/Badge';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import Button from '@mui/material/Button';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
 import { useNavigate } from 'react-router-dom';
 import { useNABHStore } from '../store/nabhStore';
 import type { Status } from '../types/nabh';
+import { loadEvidenceCountsForObjectives, type GeneratedEvidence } from '../services/objectiveStorage';
 
 const statusColors: Record<string, 'default' | 'success' | 'warning' | 'error' | 'info'> = {
   Completed: 'success',
@@ -56,7 +68,35 @@ export default function ObjectiveList() {
     setSelectedObjective,
   } = useNABHStore();
 
+  // State for evidence counts per objective
+  const [evidenceCounts, setEvidenceCounts] = useState<Record<string, GeneratedEvidence[]>>({});
+  const [isLoadingCounts, setIsLoadingCounts] = useState(false);
+
+  // State for evidence dialog
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedObjectiveCode, setSelectedObjectiveCode] = useState<string>('');
+
   const chapter = chapters.find((c) => c.id === selectedChapter);
+
+  // Fetch evidence counts when chapter changes
+  useEffect(() => {
+    const fetchEvidenceCounts = async () => {
+      if (!chapter) return;
+
+      const objectiveCodes = chapter.objectives.map(obj => obj.code);
+      if (objectiveCodes.length === 0) return;
+
+      setIsLoadingCounts(true);
+      const result = await loadEvidenceCountsForObjectives(objectiveCodes);
+      if (result.success && result.data) {
+        setEvidenceCounts(result.data);
+      }
+      setIsLoadingCounts(false);
+    };
+
+    fetchEvidenceCounts();
+  }, [chapter?.id]);
+
   if (!chapter) return null;
 
   const objectives = getFilteredObjectives(chapter.id);
@@ -66,6 +106,19 @@ export default function ObjectiveList() {
     // Use code in URL for better readability
     navigate(`/objective/${chapter.id}/${objective.code}`);
   };
+
+  const handleOpenEvidenceDialog = (e: React.MouseEvent, objectiveCode: string) => {
+    e.stopPropagation();
+    setSelectedObjectiveCode(objectiveCode);
+    setDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setSelectedObjectiveCode('');
+  };
+
+  const selectedEvidences = evidenceCounts[selectedObjectiveCode] || [];
 
   return (
     <Box>
@@ -223,6 +276,31 @@ export default function ObjectiveList() {
                       <Icon>upload_file</Icon>
                     </IconButton>
                   </Tooltip>
+                  <Tooltip title={`${evidenceCounts[obj.code]?.length || 0} saved documents`}>
+                    <IconButton
+                      size="small"
+                      onClick={(e) => handleOpenEvidenceDialog(e, obj.code)}
+                      disabled={!evidenceCounts[obj.code]?.length}
+                      sx={{
+                        color: evidenceCounts[obj.code]?.length ? 'success.main' : 'text.disabled',
+                      }}
+                    >
+                      <Badge
+                        badgeContent={evidenceCounts[obj.code]?.length || 0}
+                        color="success"
+                        max={99}
+                        sx={{
+                          '& .MuiBadge-badge': {
+                            fontSize: '0.65rem',
+                            height: '16px',
+                            minWidth: '16px',
+                          },
+                        }}
+                      >
+                        <Icon>description</Icon>
+                      </Badge>
+                    </IconButton>
+                  </Tooltip>
                 </TableCell>
               </TableRow>
             )))}
@@ -241,6 +319,65 @@ export default function ObjectiveList() {
           </Typography>
         </Box>
       )}
+
+      {/* Evidence Documents Dialog */}
+      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Icon color="success">description</Icon>
+          Saved Documents - {selectedObjectiveCode}
+        </DialogTitle>
+        <DialogContent dividers>
+          {selectedEvidences.length === 0 ? (
+            <Typography color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
+              No documents saved for this objective.
+            </Typography>
+          ) : (
+            <List dense>
+              {selectedEvidences.map((evidence, index) => (
+                <ListItem
+                  key={evidence.id}
+                  sx={{
+                    bgcolor: index % 2 === 0 ? 'grey.50' : 'inherit',
+                    borderRadius: 1,
+                    mb: 0.5,
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 36 }}>
+                    <Icon color="success" fontSize="small">check_circle</Icon>
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={evidence.evidence_title || 'Untitled Document'}
+                    secondary={new Date(evidence.created_at || '').toLocaleDateString('en-IN', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                    primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }}
+                    secondaryTypographyProps={{ variant: 'caption' }}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>Close</Button>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<Icon>visibility</Icon>}
+            onClick={() => {
+              handleCloseDialog();
+              const obj = objectives.find(o => o.code === selectedObjectiveCode);
+              if (obj) handleViewDetail(obj);
+            }}
+          >
+            View Objective
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
