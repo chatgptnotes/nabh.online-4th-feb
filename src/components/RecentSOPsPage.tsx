@@ -89,9 +89,9 @@ export default function RecentSOPsPage() {
   const [existingSOP, setExistingSOP] = useState<GeneratedSOP | null>(null);
   const [checkingExistingSOP, setCheckingExistingSOP] = useState(false);
 
-  // F7: Direct Content Editor
-  const [directEditContent, setDirectEditContent] = useState<string>('');
-  const [aiImproving, setAiImproving] = useState(false);
+  // F7: Modify SOP with AI
+  const [modifyPrompt, setModifyPrompt] = useState<string>('');
+  const [applyingChanges, setApplyingChanges] = useState(false);
 
 
   const showSnackbar = (message: string, severity: 'success' | 'error') => {
@@ -188,7 +188,7 @@ export default function RecentSOPsPage() {
     setFilteredContent('');
     setMergedContent('');
     setFinalSOP('');
-    setDirectEditContent('');
+    setModifyPrompt('');
     setExistingSOP(null);
 
     // Check for existing SOP in nabh_generated_sops table
@@ -206,10 +206,9 @@ export default function RecentSOPsPage() {
 
         if (data && !error) {
           setExistingSOP(data);
-          // Load existing SOP content into finalSOP and directEditContent
+          // Load existing SOP content into finalSOP
           if (data.sop_html_content) {
             setFinalSOP(data.sop_html_content);
-            setDirectEditContent(data.sop_html_content);
           }
           showSnackbar(`✅ Found existing SOP for ${objectiveCode}${data.pdf_url ? ' (PDF available)' : ''}`, 'success');
         }
@@ -358,7 +357,6 @@ export default function RecentSOPsPage() {
 
       if (result.success && result.sop) {
         setFinalSOP(result.sop);
-        setDirectEditContent(result.sop);
         showSnackbar('SOP generated successfully!', 'success');
       } else {
         showSnackbar(result.error || 'Failed to generate SOP', 'error');
@@ -479,7 +477,6 @@ export default function RecentSOPsPage() {
     setSOPVersions(prev => [...prev, newVersion]);
     setCurrentVersion(newVersionNumber);
     setFinalSOP(updatedSOP);
-    setDirectEditContent(updatedSOP);
 
     showSnackbar(`SOP updated to version ${newVersionNumber}!`, 'success');
   };
@@ -565,7 +562,7 @@ export default function RecentSOPsPage() {
               setFilteredContent('');
               setMergedContent('');
               setFinalSOP('');
-              setDirectEditContent('');
+              setModifyPrompt('');
               setSelectedObjective('');
               setObjectiveTitle('');
               setInterpretation('');
@@ -824,21 +821,15 @@ export default function RecentSOPsPage() {
           </Box>
         </Paper>
 
-        {/* F7: Direct Content Editor */}
+        {/* F7: Modify SOP with AI */}
         <Paper elevation={1} sx={{ border: '1px solid #ccc', borderRadius: 1 }}>
           <Box sx={{ p: 1, borderBottom: '1px solid #ccc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#e1f5fe' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography variant="subtitle2" fontWeight="bold">F7: Direct Content Editor</Typography>
-              {directEditContent && directEditContent === finalSOP && (
-                <Chip label="✓ Synced" size="small" color="success" sx={{ height: 20, fontSize: '0.7rem' }} />
-              )}
-              {directEditContent && directEditContent !== finalSOP && (
-                <Chip label="⚠ Not synced" size="small" color="warning" sx={{ height: 20, fontSize: '0.7rem' }} />
-              )}
-              {aiImproving && (
+              <Typography variant="subtitle2" fontWeight="bold">F7: Modify SOP with AI</Typography>
+              {applyingChanges && (
                 <Chip
                   icon={<CircularProgress size={12} />}
-                  label="AI Improving..."
+                  label="Applying changes..."
                   size="small"
                   color="secondary"
                   sx={{ height: 20, fontSize: '0.7rem' }}
@@ -849,86 +840,77 @@ export default function RecentSOPsPage() {
               <Button
                 size="small"
                 variant="contained"
-                color="secondary"
-                startIcon={aiImproving ? <CircularProgress size={14} color="inherit" /> : <GenerateIcon />}
+                color="primary"
+                startIcon={applyingChanges ? <CircularProgress size={14} color="inherit" /> : <GenerateIcon />}
                 onClick={async () => {
-                  if (!directEditContent) {
-                    showSnackbar('No content to improve', 'error');
+                  if (!modifyPrompt.trim()) {
+                    showSnackbar('Please enter modification instructions', 'error');
                     return;
                   }
-                  setAiImproving(true);
+                  if (!finalSOP) {
+                    showSnackbar('No SOP content to modify. Generate or load an SOP first.', 'error');
+                    return;
+                  }
+                  setApplyingChanges(true);
                   try {
-                    const improvePrompt = `You are an expert SOP writer for NABH hospital accreditation.
+                    const aiPrompt = `You are an expert SOP writer for NABH hospital accreditation.
 
-TASK: Improve the following SOP content to make it more professional, clear, and compliant with NABH standards.
+CURRENT SOP CONTENT:
+${finalSOP}
 
-CURRENT CONTENT:
-${directEditContent}
+USER'S MODIFICATION REQUEST:
+${modifyPrompt}
 
-INSTRUCTIONS:
-1. Keep the same HTML structure and formatting
-2. Improve language clarity and professionalism
-3. Ensure NABH compliance terminology is used
-4. Fix any grammatical errors
-5. Make procedures more step-by-step if needed
-6. Keep all existing sections but enhance them
+TASK: Modify the SOP according to the user's request above.
+- Keep the same HTML structure and formatting
+- Only change what the user specifically asked for
+- Maintain NABH compliance terminology
+- Return the complete modified HTML
 
-OUTPUT: Return ONLY the improved HTML content, no explanations.`;
+OUTPUT: Return ONLY the modified HTML content, no explanations or markdown.`;
 
-                    const response = await callGeminiAPI(improvePrompt, 0.7, 8192);
-                    let improvedContent = response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                    const response = await callGeminiAPI(aiPrompt, 0.7, 8192);
+                    let modifiedContent = response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-                    if (improvedContent) {
+                    if (modifiedContent) {
                       // Clean up markdown if present
-                      improvedContent = improvedContent.replace(/```html/g, '').replace(/```/g, '').trim();
-                      setDirectEditContent(improvedContent);
-                      setFinalSOP(improvedContent);
-                      showSnackbar('✨ Content improved by AI!', 'success');
+                      modifiedContent = modifiedContent.replace(/```html/g, '').replace(/```/g, '').trim();
+                      setFinalSOP(modifiedContent);
+                      setModifyPrompt(''); // Clear prompt after successful modification
+                      showSnackbar('✅ SOP modified successfully!', 'success');
                     } else {
-                      showSnackbar('AI did not return improved content', 'error');
+                      showSnackbar('AI did not return modified content', 'error');
                     }
                   } catch (error) {
-                    console.error('AI Improve error:', error);
-                    showSnackbar('Failed to improve content with AI', 'error');
+                    console.error('Modify SOP error:', error);
+                    showSnackbar('Failed to modify SOP with AI', 'error');
                   } finally {
-                    setAiImproving(false);
+                    setApplyingChanges(false);
                   }
                 }}
-                disabled={!directEditContent || aiImproving}
+                disabled={!modifyPrompt.trim() || !finalSOP || applyingChanges}
                 sx={{ fontSize: '0.75rem' }}
               >
-                {aiImproving ? 'Improving...' : '✨ AI Improve'}
+                {applyingChanges ? 'Applying...' : '🔄 Apply Changes'}
               </Button>
-              <Button
-                size="small"
-                variant="contained"
-                color="primary"
-                onClick={() => {
-                  setFinalSOP(directEditContent);
-                  showSnackbar('Content synced to preview!', 'success');
-                }}
-                disabled={!directEditContent || directEditContent === finalSOP}
-                sx={{ fontSize: '0.75rem' }}
-              >
-                Sync to Preview
-              </Button>
-              <IconButton size="small" onClick={() => handleCopy(directEditContent, 'F7')} disabled={!directEditContent}>
+              <IconButton size="small" onClick={() => setModifyPrompt('')} disabled={!modifyPrompt}>
                 <CopyIcon fontSize="small" />
               </IconButton>
             </Box>
           </Box>
           <Box sx={{ p: 1 }}>
             <textarea
-              value={directEditContent}
-              onChange={(e) => setDirectEditContent(e.target.value)}
-              onBlur={() => {
-                if (directEditContent && directEditContent !== finalSOP) {
-                  setFinalSOP(directEditContent);
-                  showSnackbar('Content auto-synced to preview!', 'success');
-                }
-              }}
-              placeholder="Edit content here. Changes will auto-sync to preview when you click outside. Use '✨ AI Improve' button to enhance content with Gemini AI..."
-              style={{ ...textareaStyle, height: '250px', fontSize: '0.8rem' }}
+              value={modifyPrompt}
+              onChange={(e) => setModifyPrompt(e.target.value)}
+              placeholder="Enter instructions to modify the SOP...
+
+Examples:
+• Change the document number to SOP-001
+• Add a section about patient safety
+• Update the effective date to today
+• Change the title to 'Infection Control Protocol'
+• Add a step for hand hygiene before procedure"
+              style={{ ...textareaStyle, height: '150px', fontSize: '0.85rem' }}
             />
           </Box>
         </Paper>
