@@ -815,7 +815,7 @@ export default function RecentSOPsPage() {
         </Paper>
 
         {/* Final SOP Result */}
-        <Paper elevation={1} sx={{ border: '1px solid #ccc', borderRadius: 1 }}>
+        <Paper elevation={1} sx={{ border: '1px solid #ccc', borderRadius: 1, overflow: 'hidden' }}>
           <Box sx={{ p: 1, borderBottom: '1px solid #ccc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: existingSOP ? '#bbdefb' : '#c8e6c9' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Typography variant="subtitle2" fontWeight="bold">Final SOP Result</Typography>
@@ -926,30 +926,46 @@ export default function RecentSOPsPage() {
             </Box>
           </Box>
           {/* Rendered SOP Document Preview */}
-          <Box sx={{ bgcolor: '#fff', minHeight: '500px' }}>
+          <Box sx={{ bgcolor: '#fff', minHeight: '500px', maxWidth: '100%', overflow: 'hidden' }}>
             {finalSOP ? (
               isTextEditing ? (
-                <Box
-                  contentEditable
-                  suppressContentEditableWarning
-                  dangerouslySetInnerHTML={{ __html: finalSOP }}
-                  onBlur={(e) => setFinalSOP(e.currentTarget.innerHTML)}
-                  sx={{
-                    width: '100%',
-                    maxWidth: '100%',
-                    minHeight: '500px',
-                    p: 2,
-                    outline: '2px solid #1976d2',
-                    bgcolor: '#fff',
-                    overflow: 'auto',
-                    wordBreak: 'break-word',
-                    '& *': { 
-                      outline: 'none', 
-                      maxWidth: '100% !important',
-                      wordBreak: 'break-word'
-                    },
-                  }}
-                />
+                <Box sx={{ width: '100%', height: '600px', border: '2px solid #1976d2' }}>
+                  <iframe
+                    id="sop-text-editor"
+                    srcDoc={`
+                      <html>
+                        <head>
+                          <style>
+                            body { margin: 0; padding: 16px; font-family: Arial, sans-serif; min-height: 100%; }
+                            table { width: 100% !important; max-width: 100% !important; border-collapse: collapse; }
+                            td, th { word-break: break-word; padding: 8px; border: 1px solid #ddd; }
+                            img { max-width: 100%; height: auto; }
+                            *:focus { outline: none; }
+                          </style>
+                        </head>
+                        <body contenteditable="true">${finalSOP}</body>
+                      </html>
+                    `}
+                    title="SOP Text Editor"
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      height: '100%',
+                      border: 'none',
+                      backgroundColor: 'white',
+                    }}
+                    onLoad={(e) => {
+                      const iframe = e.target as HTMLIFrameElement;
+                      if (iframe.contentDocument) {
+                        iframe.contentDocument.body.addEventListener('blur', () => {
+                          if (iframe.contentDocument?.body) {
+                            setFinalSOP(iframe.contentDocument.body.innerHTML);
+                          }
+                        });
+                      }
+                    }}
+                  />
+                </Box>
               ) : isEditingFinalSOP ? (
                 <textarea
                   value={finalSOP}
@@ -969,25 +985,31 @@ export default function RecentSOPsPage() {
                 <Box
                   sx={{
                     width: '100%',
-                    maxWidth: '100%',
-                    overflow: 'hidden',
-                    '& iframe': {
+                    overflow: 'auto',
+                  }}
+                >
+                  <iframe
+                    srcDoc={`
+                      <html>
+                        <head>
+                          <style>
+                            body { margin: 0; padding: 16px; font-family: Arial, sans-serif; }
+                            table { width: 100% !important; max-width: 100% !important; border-collapse: collapse; table-layout: fixed; }
+                            td, th { word-break: break-word; padding: 8px; }
+                            img { max-width: 100%; height: auto; }
+                          </style>
+                        </head>
+                        <body>${finalSOP}</body>
+                      </html>
+                    `}
+                    title="SOP Preview"
+                    sandbox="allow-same-origin allow-popups"
+                    style={{
+                      display: 'block',
                       width: '100%',
                       minHeight: '500px',
                       border: 'none',
                       backgroundColor: 'white',
-                      maxWidth: '100%',
-                    },
-                  }}
-                >
-                  <iframe
-                    srcDoc={finalSOP}
-                    title="SOP Preview"
-                    sandbox="allow-same-origin allow-popups"
-                    style={{ 
-                      display: 'block',
-                      width: '100%',
-                      maxWidth: '100%'
                     }}
                   />
                 </Box>
