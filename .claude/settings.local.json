@@ -3,7 +3,12 @@
     "allow": [
       "Bash(curl:*)",
       "Bash(npm run dev:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(ls:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run build:*)"
     ]
   }
 }

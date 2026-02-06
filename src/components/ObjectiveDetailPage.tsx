@@ -201,6 +201,7 @@ export default function ObjectiveDetailPage() {
   const [documentGenerationProgress, setDocumentGenerationProgress] = useState({ current: 0, total: 0 });
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'warning' | 'info'>('info');
 
   // State for custom prompt-based evidence generation
   const [customEvidencePrompt, setCustomEvidencePrompt] = useState('');
@@ -3193,6 +3194,15 @@ Provide only the Hindi explanation, no English text. The explanation should be c
       return;
     }
 
+    // Check for duplicate based on documentId
+    const isDuplicate = googleDriveLinks.some(link => link.documentId === parsed.documentId);
+    if (isDuplicate) {
+      setSnackbarMessage('This Google Drive link has already been added to this objective');
+      setSnackbarSeverity('warning');
+      setSnackbarOpen(true);
+      return;
+    }
+
     const newLink: GoogleDriveLink = {
       id: `gdrive-${Date.now()}`,
       url: googleDriveUrlInput,
@@ -5232,9 +5242,16 @@ Provide only the Hindi explanation, no English text. The explanation should be c
         open={snackbarOpen}
         autoHideDuration={3000}
         onClose={() => setSnackbarOpen(false)}
-        message={snackbarMessage}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      />
+      >
+        <Alert
+          onClose={() => setSnackbarOpen(false)}
+          severity={snackbarSeverity}
+          sx={{ width: '100%' }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
 
       {/* Evidence Generation Modal */}
       <Dialog
