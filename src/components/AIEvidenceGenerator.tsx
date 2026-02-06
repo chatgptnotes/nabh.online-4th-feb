@@ -37,7 +37,7 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import { useNABHStore } from '../store/nabhStore';
 import { getHospitalInfo, getNABHCoordinator, NABH_ASSESSOR_PROMPT } from '../config/hospitalConfig';
-import { getClaudeApiKey, callGeminiAPI } from '../lib/supabase';
+import { getClaudeApiKey, callGeminiAPI, getGeminiApiKey } from '../lib/supabase';
 import { generateDocumentNumber, getFormattedDate, getReviewDate } from '../utils/documentNumbering';
 import {
   generateInfographic,
@@ -88,7 +88,7 @@ const nabhCoordinator = getNABHCoordinator();
 
 const defaultListPrompt = NABH_ASSESSOR_PROMPT;
 
-const getContentPrompt = (config: HospitalConfig) => `You are an expert in NABH (National Accreditation Board for Hospitals and Healthcare Providers) accreditation documentation for ${config.name}.
+const getContentPrompt = (config: HospitalConfig, objectiveCode: string) => `You are an expert in NABH (National Accreditation Board for Hospitals and Healthcare Providers) accreditation documentation for ${config.name}.
 
 Generate a complete HTML document for the selected evidence item in ENGLISH ONLY (internal document).
 
@@ -942,6 +942,10 @@ export default function AIEvidenceGenerator() {
       return;
     }
 
+    // Get objective code for document numbering
+    const selectedObj = objectives.find(o => o.id === selectedObjective);
+    const objectiveCode = selectedObj?.code || 'GENERAL';
+
     setIsGeneratingContent(true);
     setError('');
     setGeneratedContents([]);
@@ -957,7 +961,7 @@ export default function AIEvidenceGenerator() {
       // Use training-specific prompt for training-related evidence
       const contentPrompt = isTrainingEvidence(item.text)
         ? getTrainingPrompt(hospitalConfig)
-        : getContentPrompt(hospitalConfig);
+        : getContentPrompt(hospitalConfig, objectiveCode);
 
       // Fetch real patient/staff data from nabh_patients table
       const relevantData = await getRelevantData(item.text);
