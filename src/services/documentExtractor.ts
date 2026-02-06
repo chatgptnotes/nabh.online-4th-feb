@@ -795,39 +795,95 @@ export const filterRelevantContent = async (
   }
 
   try {
-    const defaultPrompt = `You are a Hospital Information Extractor.
+    const defaultPrompt = `You are a Hospital Information Extractor for NABH SOP Documentation.
 
-TASK: From the OLD SOP TEXT, extract ONLY 4-5 sentences containing HOSPITAL-SPECIFIC information related to the objective.
+## YOUR TASK
+Extract ONLY 4-5 sentences of HOSPITAL-SPECIFIC information from the Old SOP Text (F1) that is related to the given objective element.
 
-OBJECTIVE: ${objectiveCode} - ${objectiveTitle}
-INTERPRETATION: ${interpretation}
+## OBJECTIVE DETAILS
+- Code: ${objectiveCode}
+- Title: ${objectiveTitle}
+- Interpretation: ${interpretation}
 
-OLD SOP TEXT:
+## OLD SOP TEXT (F1):
 ${oldSOPText}
 
-EXTRACT ONLY (4-5 bullet points):
-- Staff names and designations (e.g., "Dr. Murali BK - Chief Orthopedic Surgeon")
-- Department names (e.g., "Orthopedic Department", "OPD Wing")
-- Hospital-specific rules/policies
-- Equipment/resources with brand names (e.g., "Digital X-Ray - Siemens")
-- Location details (building, floor, wing)
-- Contact information
-- Timing/schedules specific to this hospital
+## WHAT TO EXTRACT (Pick only 4-5 most relevant):
+✅ Staff names with designations (e.g., "Dr. Murali BK - Chief Orthopedic Surgeon")
+✅ Department names (e.g., "Orthopedic Department", "OPD Wing", "ICU")
+✅ Hospital-specific policies/rules (e.g., "Hand hygiene audit every Monday")
+✅ Equipment with brand names (e.g., "Digital X-Ray Machine - Siemens")
+✅ Location details (e.g., "Building A, 2nd Floor", "Ground Floor Reception")
+✅ Contact information (e.g., "Emergency: +91-9823555053")
+✅ Timings/schedules (e.g., "OPD hours: 9 AM - 5 PM")
+✅ Specific forms/registers used (e.g., "Form F-101 for patient consent")
 
-DO NOT INCLUDE:
-- Generic healthcare statements like "We provide quality care"
-- Template text
-- NABH standard definitions
-- Any content not specific to THIS hospital
+## WHAT NOT TO EXTRACT:
+❌ Generic healthcare statements ("We provide quality care...")
+❌ Template text ("The hospital ensures patient safety...")
+❌ NABH standard definitions
+❌ Any content that could apply to ANY hospital
+❌ Lengthy paragraphs - only short specific facts
 
-OUTPUT: Exactly 4-5 bullet points of hospital-specific data only. If no hospital-specific data found, write "No hospital-specific information found in F1."`;
+## OUTPUT FORMAT
+• [Hospital-specific fact 1]
+• [Hospital-specific fact 2]
+• [Hospital-specific fact 3]
+• [Hospital-specific fact 4]
+• [Hospital-specific fact 5]
 
-    const prompt = customFilterPrompt || defaultPrompt;
+## IMPORTANT RULES
+1. Maximum 5 bullet points - no more
+2. Each bullet = 1 specific fact about THIS hospital
+3. If no hospital-specific data found, write: "No hospital-specific information found in F1."
+4. Do NOT add any information not present in F1
+5. Do NOT explain or elaborate - just extract facts
+6. NEVER write commentary, analysis, or explanations
+7. NEVER start with phrases like "This is...", "Here's...", "Great prompt...", "Excellent..."
+8. ONLY output bullet points - absolutely nothing else
+9. Start your response DIRECTLY with • (bullet point) - no introduction text`;
+
+    // If custom prompt provided, combine it with the data
+    let finalPrompt = defaultPrompt;
+    if (customFilterPrompt && customFilterPrompt.trim()) {
+      finalPrompt = `${customFilterPrompt}
+
+## OBJECTIVE DETAILS
+- Code: ${objectiveCode}
+- Title: ${objectiveTitle}
+- Interpretation: ${interpretation}
+
+## OLD SOP TEXT (F1) TO FILTER:
+${oldSOPText}
+
+## OUTPUT
+Start directly with bullet points. No commentary or analysis.`;
+    }
+
+    const prompt = finalPrompt;
 
     console.log('[filterRelevantContent] Calling secure backend proxy...');
     const data = await callGeminiAPI(prompt, 0.3, 8192);
 
-    const filteredText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    let filteredText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    // Clean AI response - remove any commentary before bullet points
+    // Find first bullet point and keep only from there
+    const bulletIndex = filteredText.indexOf('•');
+    const dashIndex = filteredText.indexOf('- ');
+    const starIndex = filteredText.indexOf('* ');
+
+    // Find the earliest bullet point marker
+    const indices = [bulletIndex, dashIndex, starIndex].filter(i => i !== -1);
+    if (indices.length > 0) {
+      const firstBullet = Math.min(...indices);
+      if (firstBullet > 0) {
+        // Remove everything before the first bullet
+        filteredText = filteredText.substring(firstBullet);
+        console.log('[filterRelevantContent] Cleaned commentary, starting from bullet point');
+      }
+    }
+
     console.log('[filterRelevantContent] Filtered text length:', filteredText.length);
 
     return { success: true, filteredText };
