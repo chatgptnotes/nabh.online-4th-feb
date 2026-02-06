@@ -24,6 +24,7 @@ import {
   MergeType as MergeIcon,
   Edit as EditIcon,
   Chat as ChatIcon,
+  Storage as StorageIcon,
 } from '@mui/icons-material';
 import { loadSOPsByChapter } from '../services/sopStorage';
 import { extractTextFromPDFUrl, generateSOPFromContent, filterRelevantContent } from '../services/documentExtractor';
@@ -31,10 +32,11 @@ import { loadObjectiveEditsByChapter } from '../services/objectiveStorage';
 import { loadAllSOPPrompts } from '../services/sopPromptStorage';
 import { supabase } from '../lib/supabase';
 import SOPImprovementChat from './SOPImprovementChat';
-import { saveSOPDocument, getSOPsByChapter, deleteSOPDocument, getSOPById, type SOPDocument } from '../services/sopDocumentStorage';
 import { uploadAndSaveSOP } from '../services/sopGeneratedStorage';
+import { useNavigate } from 'react-router-dom';
 
 export default function RecentSOPsPage() {
+  const navigate = useNavigate();
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',
@@ -82,11 +84,6 @@ export default function RecentSOPsPage() {
   const [sopVersions, setSOPVersions] = useState<Array<{id: string, version: string, content: string, timestamp: Date}>>([]);
   const [currentVersion, setCurrentVersion] = useState<string>('1.0');
 
-  // Stored SOPs Management
-  const [storedSOPs, setStoredSOPs] = useState<SOPDocument[]>([]);
-  const [loadingSOPs, setLoadingSOPs] = useState(false);
-  const [showStoredSOPs, setShowStoredSOPs] = useState(true);
-  const [selectedStoredSOP, setSelectedStoredSOP] = useState<string | null>(null);
 
   const showSnackbar = (message: string, severity: 'success' | 'error') => {
     setSnackbar({ open: true, message, severity });
@@ -95,13 +92,7 @@ export default function RecentSOPsPage() {
   // Load chapters on mount
   useEffect(() => {
     fetchChapters();
-    fetchStoredSOPs();
   }, []);
-
-  // Fetch stored SOPs when chapter changes
-  useEffect(() => {
-    fetchStoredSOPs();
-  }, [selectedChapterId]);
 
   // Load AI Filter Prompt and SOP Prompts from database on mount
   useEffect(() => {
@@ -492,106 +483,6 @@ export default function RecentSOPsPage() {
     setShowImprovementChat(true);
   };
 
-  // Fetch stored SOPs from database
-  const fetchStoredSOPs = async () => {
-    setLoadingSOPs(true);
-    try {
-      const result = await getSOPsByChapter(selectedChapterCode || undefined);
-      if (result.success && result.data) {
-        setStoredSOPs(result.data);
-      } else {
-        console.error('Error fetching stored SOPs:', result.error);
-      }
-    } catch (error) {
-      console.error('Error fetching stored SOPs:', error);
-    } finally {
-      setLoadingSOPs(false);
-    }
-  };
-
-  // Save current SOP to database
-  const handleSaveSOPToDatabase = async () => {
-    if (!finalSOP || !selectedChapterId || !objectiveTitle) {
-      showSnackbar('Please ensure chapter is selected and SOP is generated', 'error');
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      const sopData = {
-        chapter_code: selectedChapterCode,
-        chapter_name: getChapterName(selectedChapterId),
-        title: objectiveTitle,
-        description: `SOP for ${objectiveTitle} - Generated from Recent SOPs workflow`,
-        extracted_content: finalSOP,
-        version: currentVersion,
-        effective_date: new Date().toISOString().split('T')[0],
-        review_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        category: 'SOP',
-        department: 'Quality Management',
-        author: 'AI Generated',
-        status: 'Active' as const,
-        is_public: true,
-        tags: [selectedChapterCode, 'AI-Generated', 'NABH-3rd-Edition']
-      };
-
-      const result = await saveSOPDocument(sopData);
-      if (result.success) {
-        showSnackbar('SOP saved successfully to database!', 'success');
-        fetchStoredSOPs(); // Refresh the list
-      } else {
-        showSnackbar(result.error || 'Failed to save SOP', 'error');
-      }
-    } catch (error) {
-      console.error('Error saving SOP:', error);
-      showSnackbar('Failed to save SOP', 'error');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // Load stored SOP into editor
-  const handleLoadStoredSOP = async (sopId: string) => {
-    try {
-      const result = await getSOPById(sopId);
-      if (result.success && result.data) {
-        const sop = result.data;
-        setFinalSOP(sop.extracted_content);
-        setObjectiveTitle(sop.title);
-        setCurrentVersion(sop.version);
-        setSelectedStoredSOP(sopId);
-        showSnackbar(`Loaded SOP: ${sop.title}`, 'success');
-      } else {
-        showSnackbar(result.error || 'Failed to load SOP', 'error');
-      }
-    } catch (error) {
-      console.error('Error loading SOP:', error);
-      showSnackbar('Failed to load SOP', 'error');
-    }
-  };
-
-  // Delete stored SOP
-  const handleDeleteStoredSOP = async (sopId: string) => {
-    if (!window.confirm('Are you sure you want to delete this SOP?')) {
-      return;
-    }
-
-    try {
-      const result = await deleteSOPDocument(sopId);
-      if (result.success) {
-        showSnackbar('SOP deleted successfully', 'success');
-        fetchStoredSOPs(); // Refresh the list
-        if (selectedStoredSOP === sopId) {
-          setSelectedStoredSOP(null);
-        }
-      } else {
-        showSnackbar(result.error || 'Failed to delete SOP', 'error');
-      }
-    } catch (error) {
-      console.error('Error deleting SOP:', error);
-      showSnackbar('Failed to delete SOP', 'error');
-    }
-  };
 
   // Textarea style
   const textareaStyle = {
@@ -611,8 +502,8 @@ export default function RecentSOPsPage() {
 
   return (
     <Box sx={{ p: 2, bgcolor: '#f5f5f5', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Header: Chapter Selection */}
-      <Box sx={{ display: 'flex', justifyContent: 'flex-start', gap: 2, mb: 2 }}>
+      {/* Header: Chapter Selection + SOP Database Button */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, mb: 2 }}>
         <FormControl size="small" sx={{ minWidth: 200, bgcolor: 'white' }}>
           <InputLabel>Select Chapter</InputLabel>
           <Select
@@ -673,101 +564,16 @@ export default function RecentSOPsPage() {
             ))}
           </Select>
         </FormControl>
-      </Box>
 
-      {/* Stored SOPs Section */}
-      <Box sx={{ mb: 2 }}>
-        <Paper elevation={1} sx={{ p: 2 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              📚 Stored SOPs
-              {selectedChapterCode && (
-                <Chip size="small" label={`${selectedChapterCode} Chapter`} color="primary" variant="outlined" />
-              )}
-              <Chip size="small" label={`${storedSOPs.length} SOPs`} color="success" variant="outlined" />
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => setShowStoredSOPs(!showStoredSOPs)}
-              >
-                {showStoredSOPs ? 'Hide' : 'Show'} SOPs
-              </Button>
-              <Button
-                size="small"
-                variant="contained"
-                startIcon={<SaveIcon />}
-                onClick={handleSaveSOPToDatabase}
-                disabled={!finalSOP || isSaving}
-              >
-                {isSaving ? 'Saving...' : 'Save Current SOP'}
-              </Button>
-            </Box>
-          </Box>
-          
-          {showStoredSOPs && (
-            <Box>
-              {loadingSOPs ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                  <CircularProgress size={24} />
-                  <Typography variant="body2" sx={{ ml: 2 }}>Loading stored SOPs...</Typography>
-                </Box>
-              ) : storedSOPs.length === 0 ? (
-                <Box sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>
-                  <Typography variant="body2">No SOPs stored yet. Generate and save your first SOP!</Typography>
-                </Box>
-              ) : (
-                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 2 }}>
-                  {storedSOPs.map((sop) => (
-                    <Paper
-                      key={sop.id}
-                      elevation={2}
-                      sx={{
-                        p: 2,
-                        border: selectedStoredSOP === sop.id ? 2 : 1,
-                        borderColor: selectedStoredSOP === sop.id ? 'primary.main' : 'divider',
-                        cursor: 'pointer',
-                        '&:hover': { boxShadow: 3 }
-                      }}
-                      onClick={() => handleLoadStoredSOP(sop.id)}
-                    >
-                      <Box sx={{ display: 'flex', justifyContent: 'between', alignItems: 'start', mb: 1 }}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
-                          {sop.title}
-                        </Typography>
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteStoredSOP(sop.id);
-                          }}
-                          sx={{ ml: 1, color: 'error.main' }}
-                        >
-                          ❌
-                        </IconButton>
-                      </Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                        {sop.description}
-                      </Typography>
-                      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1 }}>
-                        <Chip size="small" label={`v${sop.version}`} color="primary" />
-                        <Chip size="small" label={sop.status} color={sop.status === 'Active' ? 'success' : 'default'} />
-                        {sop.chapter_code && (
-                          <Chip size="small" label={sop.chapter_code} variant="outlined" />
-                        )}
-                      </Box>
-                      <Typography variant="caption" color="text.secondary">
-                        Created: {new Date(sop.created_at).toLocaleDateString()}
-                        {sop.created_by && ` • by ${sop.created_by}`}
-                      </Typography>
-                    </Paper>
-                  ))}
-                </Box>
-              )}
-            </Box>
-          )}
-        </Paper>
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<StorageIcon />}
+          onClick={() => navigate('/sop-database')}
+          sx={{ fontWeight: 600 }}
+        >
+          📚 SOP Database
+        </Button>
       </Box>
 
       {/* Main Container */}
