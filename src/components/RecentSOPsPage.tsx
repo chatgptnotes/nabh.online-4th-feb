@@ -33,6 +33,7 @@ import { loadAllSOPPrompts } from '../services/sopPromptStorage';
 import { supabase } from '../lib/supabase';
 import SOPImprovementChat from './SOPImprovementChat';
 import { uploadAndSaveSOP, getGeneratedSOPsByChapter, type GeneratedSOP } from '../services/sopGeneratedStorage';
+import { callGeminiAPI } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 
 export default function RecentSOPsPage() {
@@ -87,6 +88,10 @@ export default function RecentSOPsPage() {
   // Existing SOP from database
   const [existingSOP, setExistingSOP] = useState<GeneratedSOP | null>(null);
   const [checkingExistingSOP, setCheckingExistingSOP] = useState(false);
+
+  // F7: Direct Content Editor
+  const [directEditContent, setDirectEditContent] = useState<string>('');
+  const [aiImproving, setAiImproving] = useState(false);
 
 
   const showSnackbar = (message: string, severity: 'success' | 'error') => {
@@ -183,6 +188,7 @@ export default function RecentSOPsPage() {
     setFilteredContent('');
     setMergedContent('');
     setFinalSOP('');
+    setDirectEditContent('');
     setExistingSOP(null);
 
     // Check for existing SOP in nabh_generated_sops table
@@ -200,9 +206,10 @@ export default function RecentSOPsPage() {
 
         if (data && !error) {
           setExistingSOP(data);
-          // Load existing SOP content into finalSOP
+          // Load existing SOP content into finalSOP and directEditContent
           if (data.sop_html_content) {
             setFinalSOP(data.sop_html_content);
+            setDirectEditContent(data.sop_html_content);
           }
           showSnackbar(`✅ Found existing SOP for ${objectiveCode}${data.pdf_url ? ' (PDF available)' : ''}`, 'success');
         }
@@ -351,6 +358,7 @@ export default function RecentSOPsPage() {
 
       if (result.success && result.sop) {
         setFinalSOP(result.sop);
+        setDirectEditContent(result.sop);
         showSnackbar('SOP generated successfully!', 'success');
       } else {
         showSnackbar(result.error || 'Failed to generate SOP', 'error');
@@ -471,7 +479,8 @@ export default function RecentSOPsPage() {
     setSOPVersions(prev => [...prev, newVersion]);
     setCurrentVersion(newVersionNumber);
     setFinalSOP(updatedSOP);
-    
+    setDirectEditContent(updatedSOP);
+
     showSnackbar(`SOP updated to version ${newVersionNumber}!`, 'success');
   };
 
@@ -556,6 +565,7 @@ export default function RecentSOPsPage() {
               setFilteredContent('');
               setMergedContent('');
               setFinalSOP('');
+              setDirectEditContent('');
               setSelectedObjective('');
               setObjectiveTitle('');
               setInterpretation('');
@@ -810,6 +820,115 @@ export default function RecentSOPsPage() {
               onChange={(e) => setFinalPrompt(e.target.value)}
               placeholder="Optional: Additional instructions for SOP generation based on NABH 3rd Edition..."
               style={{ ...textareaStyle, height: '60px' }}
+            />
+          </Box>
+        </Paper>
+
+        {/* F7: Direct Content Editor */}
+        <Paper elevation={1} sx={{ border: '1px solid #ccc', borderRadius: 1 }}>
+          <Box sx={{ p: 1, borderBottom: '1px solid #ccc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#e1f5fe' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="subtitle2" fontWeight="bold">F7: Direct Content Editor</Typography>
+              {directEditContent && directEditContent === finalSOP && (
+                <Chip label="✓ Synced" size="small" color="success" sx={{ height: 20, fontSize: '0.7rem' }} />
+              )}
+              {directEditContent && directEditContent !== finalSOP && (
+                <Chip label="⚠ Not synced" size="small" color="warning" sx={{ height: 20, fontSize: '0.7rem' }} />
+              )}
+              {aiImproving && (
+                <Chip
+                  icon={<CircularProgress size={12} />}
+                  label="AI Improving..."
+                  size="small"
+                  color="secondary"
+                  sx={{ height: 20, fontSize: '0.7rem' }}
+                />
+              )}
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                size="small"
+                variant="contained"
+                color="secondary"
+                startIcon={aiImproving ? <CircularProgress size={14} color="inherit" /> : <GenerateIcon />}
+                onClick={async () => {
+                  if (!directEditContent) {
+                    showSnackbar('No content to improve', 'error');
+                    return;
+                  }
+                  setAiImproving(true);
+                  try {
+                    const improvePrompt = `You are an expert SOP writer for NABH hospital accreditation.
+
+TASK: Improve the following SOP content to make it more professional, clear, and compliant with NABH standards.
+
+CURRENT CONTENT:
+${directEditContent}
+
+INSTRUCTIONS:
+1. Keep the same HTML structure and formatting
+2. Improve language clarity and professionalism
+3. Ensure NABH compliance terminology is used
+4. Fix any grammatical errors
+5. Make procedures more step-by-step if needed
+6. Keep all existing sections but enhance them
+
+OUTPUT: Return ONLY the improved HTML content, no explanations.`;
+
+                    const response = await callGeminiAPI(improvePrompt, 0.7, 8192);
+                    let improvedContent = response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+                    if (improvedContent) {
+                      // Clean up markdown if present
+                      improvedContent = improvedContent.replace(/```html/g, '').replace(/```/g, '').trim();
+                      setDirectEditContent(improvedContent);
+                      setFinalSOP(improvedContent);
+                      showSnackbar('✨ Content improved by AI!', 'success');
+                    } else {
+                      showSnackbar('AI did not return improved content', 'error');
+                    }
+                  } catch (error) {
+                    console.error('AI Improve error:', error);
+                    showSnackbar('Failed to improve content with AI', 'error');
+                  } finally {
+                    setAiImproving(false);
+                  }
+                }}
+                disabled={!directEditContent || aiImproving}
+                sx={{ fontSize: '0.75rem' }}
+              >
+                {aiImproving ? 'Improving...' : '✨ AI Improve'}
+              </Button>
+              <Button
+                size="small"
+                variant="contained"
+                color="primary"
+                onClick={() => {
+                  setFinalSOP(directEditContent);
+                  showSnackbar('Content synced to preview!', 'success');
+                }}
+                disabled={!directEditContent || directEditContent === finalSOP}
+                sx={{ fontSize: '0.75rem' }}
+              >
+                Sync to Preview
+              </Button>
+              <IconButton size="small" onClick={() => handleCopy(directEditContent, 'F7')} disabled={!directEditContent}>
+                <CopyIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          </Box>
+          <Box sx={{ p: 1 }}>
+            <textarea
+              value={directEditContent}
+              onChange={(e) => setDirectEditContent(e.target.value)}
+              onBlur={() => {
+                if (directEditContent && directEditContent !== finalSOP) {
+                  setFinalSOP(directEditContent);
+                  showSnackbar('Content auto-synced to preview!', 'success');
+                }
+              }}
+              placeholder="Edit content here. Changes will auto-sync to preview when you click outside. Use '✨ AI Improve' button to enhance content with Gemini AI..."
+              style={{ ...textareaStyle, height: '250px', fontSize: '0.8rem' }}
             />
           </Box>
         </Paper>
