@@ -774,6 +774,11 @@ export const formatDocumentAsEvidence = async (
       detectedTitle = 'Document Report';
     }
 
+    // Get today's date in proper format
+    const today = new Date();
+    const formattedDate = today.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const reviewDate = new Date(today.getTime() + 365 * 24 * 60 * 60 * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
     const prompt = `You are an expert in creating professional NABH (National Accreditation Board for Hospitals) documentation for ${hospitalConfig.name}.
 
 TASK: Format the uploaded document content into a professional NABH evidence document.
@@ -784,6 +789,7 @@ IMPORTANT INSTRUCTIONS:
 3. **DETECT APPROPRIATE TITLE**: Use "${detectedTitle}" as the base title, but improve it if you can detect a better title from the content
 4. **FORMAT PROFESSIONALLY**: Convert tables to proper HTML tables, organize sections clearly
 5. **KEEP STANDARD NABH STRUCTURE**: Header, document info, signatures, content, footer
+6. **CRITICAL - DO NOT MODIFY THE SIGNATURE SECTION**: Copy the auth-table HTML EXACTLY as provided below - DO NOT change names, designations, dates, or signature images
 
 OBJECTIVE CONTEXT: ${objectiveCode} - ${objectiveTitle}
 
@@ -842,19 +848,21 @@ Generate a complete, print-ready HTML document using this template structure:
   <div class="doc-title">[AUTO-DETECTED TITLE FROM CONTENT]</div>
 
   <table class="info-table">
-    <tr><th>Document No</th><td>[Generate appropriate code]</td><th>Version</th><td>1.0</td></tr>
+    <tr><th>Document No</th><td>[Generate appropriate code based on ${objectiveCode}]</td><th>Version</th><td>1.0</td></tr>
     <tr><th>Department</th><td>[Detect from content or use "General"]</td><th>Category</th><td>Record/Report</td></tr>
-    <tr><th>Effective Date</th><td>${new Date().toLocaleDateString('en-GB')}</td><th>Review Date</th><td>${new Date(Date.now() + 365*24*60*60*1000).toLocaleDateString('en-GB')}</td></tr>
+    <tr><th>Effective Date</th><td>${formattedDate}</td><th>Review Date</th><td>${reviewDate}</td></tr>
   </table>
 
+  <!-- CRITICAL: COPY THIS AUTH-TABLE EXACTLY AS-IS - DO NOT MODIFY NAMES, DATES, OR SIGNATURES -->
   <table class="auth-table">
     <tr><th>PREPARED BY</th><th>REVIEWED BY</th><th>APPROVED BY</th></tr>
     <tr>
-      <td>Name: Sonali Kakde<br>Designation: Clinical Audit Coordinator<br>Date: ${getFormattedDate()}<br><br>Signature:<br><img src="/Sonali's signature.png" alt="Sonali Kakde Signature" style="height: 50px; max-width: 120px; object-fit: contain;"></td>
-      <td>Name: Gaurav Agrawal<br>Designation: Hospital Administrator<br>Date: ${getFormattedDate()}<br><br>Signature:<br><img src="/Gaurav's signature.png" alt="Gaurav Agrawal Signature" style="height: 50px; max-width: 120px; object-fit: contain;"></td>
-      <td>Name: Dr. Shiraz Khan<br>Designation: NABH Coordinator / Administrator<br>Date: ${getFormattedDate()}<br><br>Signature:<br><img src="/Dr shiraz's signature.png" alt="Dr. Shiraz Khan Signature" style="height: 50px; max-width: 120px; object-fit: contain;"></td>
+      <td>Name: Sonali Kakde<br>Designation: Clinical Audit Coordinator<br>Date: ${formattedDate}<br><br>Signature:<br><img src="/Sonali's signature.png" alt="Sonali Kakde Signature" style="height: 50px; max-width: 120px; object-fit: contain;"></td>
+      <td>Name: Gaurav Agrawal<br>Designation: Hospital Administrator<br>Date: ${formattedDate}<br><br>Signature:<br><img src="/Gaurav's signature.png" alt="Gaurav Agrawal Signature" style="height: 50px; max-width: 120px; object-fit: contain;"></td>
+      <td>Name: Dr. Shiraz Khan<br>Designation: NABH Coordinator / Administrator<br>Date: ${formattedDate}<br><br>Signature:<br><img src="/Dr shiraz's signature.png" alt="Dr. Shiraz Khan Signature" style="height: 50px; max-width: 120px; object-fit: contain;"></td>
     </tr>
   </table>
+  <!-- END AUTH-TABLE - DO NOT MODIFY ABOVE -->
 
   <!-- MAIN CONTENT: Format all extracted data here -->
   <!-- Convert tables to proper <table class="data-table"> elements -->
@@ -863,7 +871,7 @@ Generate a complete, print-ready HTML document using this template structure:
 
   <table class="revision-table">
     <tr><th>Version</th><th>Date</th><th>Description</th><th>Changed By</th></tr>
-    <tr><td>1.0</td><td>${getFormattedDate()}</td><td>Initial Release</td><td>Sonali Kakde</td></tr>
+    <tr><td>1.0</td><td>${formattedDate}</td><td>Initial Release</td><td>Sonali Kakde</td></tr>
   </table>
 
   <div class="stamp-area">[HOSPITAL STAMP AREA]</div>
