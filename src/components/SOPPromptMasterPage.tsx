@@ -258,6 +258,13 @@ export default function SOPPromptMasterPage() {
     }
   };
 
+  const HIDDEN_PROMPT_TITLES = new Set([
+    'F1, F3, F4, Filter Prompt',
+    'AI Filter - Hospital-Specific Content Extractor',
+    'Detailed SOP Generation Master',
+  ]);
+  const visiblePrompts = prompts.filter(p => !HIDDEN_PROMPT_TITLES.has(p.title));
+
   if (isLoading) {
     return (
       <Container maxWidth="lg" sx={{ py: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
@@ -281,7 +288,7 @@ export default function SOPPromptMasterPage() {
 
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h6">
-          {prompts.length} Prompt{prompts.length !== 1 ? 's' : ''} Available
+          {visiblePrompts.length} Prompt{visiblePrompts.length !== 1 ? 's' : ''} Available
         </Typography>
         <Button
           variant="contained"
@@ -294,7 +301,7 @@ export default function SOPPromptMasterPage() {
       </Box>
 
       <Box display="flex" gap={3} flexWrap="wrap">
-        {prompts.map((prompt) => (
+        {visiblePrompts.map((prompt) => (
           <Box flex="1" minWidth="400px" key={prompt.id}>
             <Card elevation={2} sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
               <CardContent sx={{ flexGrow: 1 }}>
