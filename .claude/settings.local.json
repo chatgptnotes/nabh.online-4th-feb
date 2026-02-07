@@ -11,7 +11,11 @@
       "Bash(npm run build:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(npx vite build)"
+      "mcp__ide__getDiagnostics",
+      "Bash(npx vite build)",
+      "Bash(git push:*)",
+      "Bash(gh pr view:*)",
+      "Bash(python3:*)"
     ]
   }
 }

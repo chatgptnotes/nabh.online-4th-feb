@@ -96,6 +96,7 @@ export default function RecentSOPsPage() {
 
   // Combined Filter Input (F1 + F3 + F4 + Filter Prompt)
   const [combinedFilterInput, setCombinedFilterInput] = useState<string>('');
+  const [selectedCombinedPromptId, setSelectedCombinedPromptId] = useState<string>('');
 
 
   const showSnackbar = (message: string, severity: 'success' | 'error') => {
@@ -116,6 +117,9 @@ export default function RecentSOPsPage() {
 
         // Set default selection for AI Filter Prompt dropdown
         const defaultFilterPrompt = result.data.find(p =>
+          p.title?.toLowerCase().includes('ai filter prompt') &&
+          p.title?.toLowerCase().includes('extract relevant')
+        ) || result.data.find(p =>
           p.title?.toLowerCase().includes('ai filter') ||
           p.title?.toLowerCase().includes('filter')
         );
@@ -127,16 +131,30 @@ export default function RecentSOPsPage() {
           setFilterPrompt(result.data[0].prompt);
         }
 
-        // Set default selection for Final Prompt dropdown
+        // Set default selection for Combined Filter Input dropdown
+        const defaultCombinedPrompt = result.data.find(p =>
+          p.title?.toLowerCase().includes('f1') &&
+          p.title?.toLowerCase().includes('f3') &&
+          p.title?.toLowerCase().includes('f4') &&
+          p.title?.toLowerCase().includes('filter prompt')
+        ) || result.data.find(p =>
+          p.title?.toLowerCase().includes('ai filter') ||
+          p.title?.toLowerCase().includes('filter')
+        );
+        if (defaultCombinedPrompt) {
+          setSelectedCombinedPromptId(defaultCombinedPrompt.id);
+        }
+
+        // Set default selection for Final Prompt dropdown - exact match only, no fallback
         const defaultPrompt = result.data.find(p =>
-          p.title?.toLowerCase().includes('sop generation') ||
-          p.title?.toLowerCase().includes('generation') ||
-          p.title?.toLowerCase().includes('instructions')
-        ) || result.data[0];
+          p.title === 'Final Prompt: SOP Generation Instructions'
+        );
 
         if (defaultPrompt) {
           setSelectedPromptId(defaultPrompt.id);
           setFinalPrompt(defaultPrompt.prompt);
+        } else {
+          showSnackbar('Default prompt "Final Prompt: SOP Generation Instructions" not found in database', 'error');
         }
       }
     };
@@ -311,6 +329,10 @@ export default function RecentSOPsPage() {
       showSnackbar('Please select an objective element', 'error');
       return;
     }
+    if (!filterPrompt || !filterPrompt.trim()) {
+      showSnackbar('No filter prompt selected. Please select a prompt from the dropdown.', 'error');
+      return;
+    }
 
     setFilteringContent(true);
     setFilteredContent('');
@@ -321,7 +343,7 @@ export default function RecentSOPsPage() {
         selectedObjective,
         objectiveTitle,
         interpretation,
-        filterPrompt || undefined
+        filterPrompt
       );
 
       if (result.success && result.filteredText) {
@@ -365,6 +387,10 @@ export default function RecentSOPsPage() {
   const handleGenerateSOP = async () => {
     if (!mergedContent) {
       showSnackbar('Please merge content first (F6)', 'error');
+      return;
+    }
+    if (!finalPrompt || !finalPrompt.trim()) {
+      showSnackbar('No SOP generation prompt selected. Please select a prompt from the dropdown.', 'error');
       return;
     }
 
@@ -758,6 +784,13 @@ export default function RecentSOPsPage() {
                   <MenuItem value="" disabled>-- Select Prompt --</MenuItem>
                   {sopPrompts
                     .filter(p => p.title?.toLowerCase().includes('filter'))
+                    .sort((a, b) => {
+                      const aMatch = a.title?.toLowerCase().includes('ai filter prompt') && a.title?.toLowerCase().includes('extract relevant');
+                      const bMatch = b.title?.toLowerCase().includes('ai filter prompt') && b.title?.toLowerCase().includes('extract relevant');
+                      if (aMatch && !bMatch) return -1;
+                      if (!aMatch && bMatch) return 1;
+                      return 0;
+                    })
                     .map((p) => (
                       <MenuItem key={p.id} value={p.id}>{p.title}</MenuItem>
                     ))}
@@ -774,12 +807,13 @@ export default function RecentSOPsPage() {
             />
           </Box>
           <Box sx={{ p: 1, borderTop: '1px solid #eee' }}>
-            <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+            <Box sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center' }}>
               <Button
                 size="small"
                 variant="contained"
                 color="primary"
                 onClick={() => {
+                  const selectedCombinedPrompt = sopPrompts.find(p => p.id === selectedCombinedPromptId);
                   const combined = `=== F1: SOP Extracted Text ===
 ${oldSOPText || 'No F1 data'}
 
@@ -790,7 +824,7 @@ ${objectiveTitle || 'No title'}
 ${interpretation || 'No interpretation'}
 
 === AI Filter Prompt ===
-${filterPrompt || 'No filter prompt'}`;
+${selectedCombinedPrompt?.prompt || ''}`;
                   setCombinedFilterInput(combined);
                 }}
                 sx={{ fontSize: '0.75rem' }}
@@ -808,6 +842,32 @@ ${filterPrompt || 'No filter prompt'}`;
               >
                 {filteringContent ? 'Running...' : 'Run'}
               </Button>
+              <FormControl size="small" sx={{ ml: 'auto', minWidth: 220 }}>
+                <Select
+                  value={selectedCombinedPromptId}
+                  onChange={(e) => {
+                    const promptId = e.target.value as string;
+                    setSelectedCombinedPromptId(promptId);
+                    const selected = sopPrompts.find(p => p.id === promptId);
+                    if (selected) {
+                      setCombinedFilterInput(selected.prompt);
+                    }
+                  }}
+                  displayEmpty
+                  sx={{ fontSize: '0.8rem', bgcolor: '#fff' }}
+                >
+                  <MenuItem value="" disabled>-- Select Prompt --</MenuItem>
+                  {[...sopPrompts].sort((a, b) => {
+                    const aMatch = a.title?.toLowerCase().includes('ai filter prompt') && a.title?.toLowerCase().includes('extract relevant');
+                    const bMatch = b.title?.toLowerCase().includes('ai filter prompt') && b.title?.toLowerCase().includes('extract relevant');
+                    if (aMatch && !bMatch) return -1;
+                    if (!aMatch && bMatch) return 1;
+                    return 0;
+                  }).map((p) => (
+                    <MenuItem key={p.id} value={p.id}>{p.title}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Box>
             <textarea
               value={combinedFilterInput}

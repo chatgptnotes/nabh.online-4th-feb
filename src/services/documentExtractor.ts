@@ -585,6 +585,10 @@ export const generateSOPFromContent = async (
   const gauravSignature = `${baseUrl}/Gaurav's signature.png`;
   const shirazSignature = `${baseUrl}/Dr shiraz's signature.png`;
 
+  if (!customPrompt || !customPrompt.trim()) {
+    return { success: false, sop: '', error: 'No SOP generation prompt provided. Please select a prompt from the database.' };
+  }
+
   try {
     const prompt = `You are an expert in NABH (National Accreditation Board for Hospitals and Healthcare Providers) accreditation documentation for Hope Hospital.
 
@@ -600,7 +604,7 @@ ${titlesInterpretation}
 ${pdfContent}
 
 ## User Specific Instructions:
-${customPrompt || 'Generate a comprehensive SOP based on NABH 3rd Edition guidelines.'}
+${customPrompt}
 
 IMPORTANT: Generate the output as a complete, valid HTML document with embedded CSS styling. The document must be modern, professional, and print-ready.
 
@@ -794,59 +798,12 @@ export const filterRelevantContent = async (
     return { success: false, error: 'No old SOP text provided to filter' };
   }
 
+  if (!customFilterPrompt || !customFilterPrompt.trim()) {
+    return { success: false, error: 'No filter prompt provided. Please select a prompt from the database.' };
+  }
+
   try {
-    const defaultPrompt = `You are a Hospital Information Extractor for NABH SOP Documentation.
-
-## YOUR TASK
-Extract ONLY 4-5 sentences of HOSPITAL-SPECIFIC information from the Old SOP Text (F1) that is related to the given objective element.
-
-## OBJECTIVE DETAILS
-- Code: ${objectiveCode}
-- Title: ${objectiveTitle}
-- Interpretation: ${interpretation}
-
-## OLD SOP TEXT (F1):
-${oldSOPText}
-
-## WHAT TO EXTRACT (Pick only 4-5 most relevant):
-✅ Staff names with designations (e.g., "Dr. Murali BK - Chief Orthopedic Surgeon")
-✅ Department names (e.g., "Orthopedic Department", "OPD Wing", "ICU")
-✅ Hospital-specific policies/rules (e.g., "Hand hygiene audit every Monday")
-✅ Equipment with brand names (e.g., "Digital X-Ray Machine - Siemens")
-✅ Location details (e.g., "Building A, 2nd Floor", "Ground Floor Reception")
-✅ Contact information (e.g., "Emergency: +91-9823555053")
-✅ Timings/schedules (e.g., "OPD hours: 9 AM - 5 PM")
-✅ Specific forms/registers used (e.g., "Form F-101 for patient consent")
-
-## WHAT NOT TO EXTRACT:
-❌ Generic healthcare statements ("We provide quality care...")
-❌ Template text ("The hospital ensures patient safety...")
-❌ NABH standard definitions
-❌ Any content that could apply to ANY hospital
-❌ Lengthy paragraphs - only short specific facts
-
-## OUTPUT FORMAT
-• [Hospital-specific fact 1]
-• [Hospital-specific fact 2]
-• [Hospital-specific fact 3]
-• [Hospital-specific fact 4]
-• [Hospital-specific fact 5]
-
-## IMPORTANT RULES
-1. Maximum 5 bullet points - no more
-2. Each bullet = 1 specific fact about THIS hospital
-3. If no hospital-specific data found, write: "No hospital-specific information found in F1."
-4. Do NOT add any information not present in F1
-5. Do NOT explain or elaborate - just extract facts
-6. NEVER write commentary, analysis, or explanations
-7. NEVER start with phrases like "This is...", "Here's...", "Great prompt...", "Excellent..."
-8. ONLY output bullet points - absolutely nothing else
-9. Start your response DIRECTLY with • (bullet point) - no introduction text`;
-
-    // If custom prompt provided, combine it with the data
-    let finalPrompt = defaultPrompt;
-    if (customFilterPrompt && customFilterPrompt.trim()) {
-      finalPrompt = `${customFilterPrompt}
+    const prompt = `${customFilterPrompt}
 
 ## OBJECTIVE DETAILS
 - Code: ${objectiveCode}
@@ -858,9 +815,6 @@ ${oldSOPText}
 
 ## OUTPUT
 Start directly with bullet points. No commentary or analysis.`;
-    }
-
-    const prompt = finalPrompt;
 
     console.log('[filterRelevantContent] Calling secure backend proxy...');
     const data = await callGeminiAPI(prompt, 0.3, 8192);
