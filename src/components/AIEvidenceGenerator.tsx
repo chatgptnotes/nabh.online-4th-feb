@@ -934,6 +934,8 @@ export default function AIEvidenceGenerator() {
 
   const selectedCount = evidenceItems.filter(item => item.selected).length;
 
+  const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
   const handleGenerateContent = async () => {
     const selectedItems = evidenceItems.filter(item => item.selected);
 
@@ -945,6 +947,9 @@ export default function AIEvidenceGenerator() {
     // Get objective code for document numbering
     const selectedObj = objectives.find(o => o.id === selectedObjective);
     const objectiveCode = selectedObj?.code || 'GENERAL';
+    const objectiveInfo = selectedObj
+      ? `${selectedObj.code} - ${selectedObj.title}`
+      : description.substring(0, 100);
 
     setIsGeneratingContent(true);
     setError('');
@@ -954,81 +959,83 @@ export default function AIEvidenceGenerator() {
 
     const contents: GeneratedContent[] = [];
 
-    for (let i = 0; i < selectedItems.length; i++) {
-      const item = selectedItems[i];
-      setContentProgress({ current: i + 1, total: selectedItems.length });
+    try {
+      for (let i = 0; i < selectedItems.length; i++) {
+        const item = selectedItems[i];
+        setContentProgress({ current: i + 1, total: selectedItems.length });
 
-      // Use training-specific prompt for training-related evidence
-      const contentPrompt = isTrainingEvidence(item.text)
-        ? getTrainingPrompt(hospitalConfig)
-        : getContentPrompt(hospitalConfig, objectiveCode);
+        try {
+          // Use training-specific prompt for training-related evidence
+          const contentPrompt = isTrainingEvidence(item.text)
+            ? getTrainingPrompt(hospitalConfig)
+            : getContentPrompt(hospitalConfig, objectiveCode);
 
-      // Fetch real patient/staff data from nabh_patients table
-      const relevantData = await getRelevantData(item.text);
+          // Fetch real patient/staff data from nabh_patients table
+          const relevantData = await getRelevantData(item.text);
 
-      // Build data context with real patient data
-      let dataContext = '';
+          // Build data context with real patient data
+          let dataContext = '';
 
-      if (relevantData.patients && relevantData.patients.length > 0) {
-        dataContext += '\n\n=== REAL PATIENT DATA FROM DATABASE (Use these EXACT values) ===\n';
-        relevantData.patients.forEach((p: { visit_id: string; patient_name: string; diagnosis?: string | null; admission_date?: string | null; discharge_date?: string | null; status: string }, idx: number) => {
-          dataContext += `Patient ${idx + 1}:\n`;
-          dataContext += `  - Visit ID/UHID: ${p.visit_id}\n`;
-          dataContext += `  - Patient Name: ${p.patient_name}\n`;
-          dataContext += `  - Diagnosis: ${p.diagnosis || 'General'}\n`;
-          dataContext += `  - Admission Date: ${p.admission_date || 'N/A'}\n`;
-          dataContext += `  - Discharge Date: ${p.discharge_date || 'N/A'}\n`;
-          dataContext += `  - Status: ${p.status}\n\n`;
-        });
-      }
+          if (relevantData.patients && relevantData.patients.length > 0) {
+            dataContext += '\n\n=== REAL PATIENT DATA FROM DATABASE (Use these EXACT values) ===\n';
+            relevantData.patients.forEach((p: { visit_id: string; patient_name: string; diagnosis?: string | null; admission_date?: string | null; discharge_date?: string | null; status: string }, idx: number) => {
+              dataContext += `Patient ${idx + 1}:\n`;
+              dataContext += `  - Visit ID/UHID: ${p.visit_id}\n`;
+              dataContext += `  - Patient Name: ${p.patient_name}\n`;
+              dataContext += `  - Diagnosis: ${p.diagnosis || 'General'}\n`;
+              dataContext += `  - Admission Date: ${p.admission_date || 'N/A'}\n`;
+              dataContext += `  - Discharge Date: ${p.discharge_date || 'N/A'}\n`;
+              dataContext += `  - Status: ${p.status}\n\n`;
+            });
+          }
 
-      if (relevantData.staff && relevantData.staff.length > 0) {
-        dataContext += '\n=== REAL STAFF DATA FROM DATABASE (Use these EXACT values) ===\n';
-        relevantData.staff.forEach((s: { name: string; role: string; designation: string; department: string }, idx: number) => {
-          dataContext += `Staff ${idx + 1}:\n`;
-          dataContext += `  - Name: ${s.name}\n`;
-          dataContext += `  - Role: ${s.role}\n`;
-          dataContext += `  - Designation: ${s.designation}\n`;
-          dataContext += `  - Department: ${s.department}\n\n`;
-        });
-      }
+          if (relevantData.staff && relevantData.staff.length > 0) {
+            dataContext += '\n=== REAL STAFF DATA FROM DATABASE (Use these EXACT values) ===\n';
+            relevantData.staff.forEach((s: { name: string; role: string; designation: string; department: string }, idx: number) => {
+              dataContext += `Staff ${idx + 1}:\n`;
+              dataContext += `  - Name: ${s.name}\n`;
+              dataContext += `  - Role: ${s.role}\n`;
+              dataContext += `  - Designation: ${s.designation}\n`;
+              dataContext += `  - Department: ${s.department}\n\n`;
+            });
+          }
 
-      // Add consultant/doctor data to prompt
-      if (relevantData.consultants && relevantData.consultants.length > 0) {
-        dataContext += '\n=== VISITING CONSULTANTS / DOCTORS (Use ONLY these names for doctors) ===\n';
-        dataContext += 'CRITICAL: Do NOT invent doctor names. ONLY use doctors from this list:\n\n';
-        relevantData.consultants.forEach((c: { sr_no: number; name: string; department: string; qualification?: string | null; registration_no?: string | null }, idx: number) => {
-          dataContext += `Doctor ${idx + 1}:\n`;
-          dataContext += `  - Name: ${c.name}\n`;
-          dataContext += `  - Department: ${c.department}\n`;
-          dataContext += `  - Qualification: ${c.qualification || 'N/A'}\n`;
-          dataContext += `  - Registration No: ${c.registration_no || 'N/A'}\n\n`;
-        });
-        dataContext += 'DO NOT create fake doctor names like "Dr. Sharma", "Dr. Verma", "Dr. Gupta", "Dr. Khan", "Dr. Patel", "Dr. Singh".\n';
-        dataContext += 'DO NOT create fake nurse names like "Nurse Patel", "Nurse Kumar", "Nurse Singh", "Nurse Yadav".\n';
-        dataContext += 'Only use the doctor names listed above.\n';
-      }
+          // Add consultant/doctor data to prompt
+          if (relevantData.consultants && relevantData.consultants.length > 0) {
+            dataContext += '\n=== VISITING CONSULTANTS / DOCTORS (Use ONLY these names for doctors) ===\n';
+            dataContext += 'CRITICAL: Do NOT invent doctor names. ONLY use doctors from this list:\n\n';
+            relevantData.consultants.forEach((c: { sr_no: number; name: string; department: string; qualification?: string | null; registration_no?: string | null }, idx: number) => {
+              dataContext += `Doctor ${idx + 1}:\n`;
+              dataContext += `  - Name: ${c.name}\n`;
+              dataContext += `  - Department: ${c.department}\n`;
+              dataContext += `  - Qualification: ${c.qualification || 'N/A'}\n`;
+              dataContext += `  - Registration No: ${c.registration_no || 'N/A'}\n\n`;
+            });
+            dataContext += 'DO NOT create fake doctor names like "Dr. Sharma", "Dr. Verma", "Dr. Gupta", "Dr. Khan", "Dr. Patel", "Dr. Singh".\n';
+            dataContext += 'DO NOT create fake nurse names like "Nurse Patel", "Nurse Kumar", "Nurse Singh", "Nurse Yadav".\n';
+            dataContext += 'Only use the doctor names listed above.\n';
+          }
 
-      // Always add signatory and date instructions
-      dataContext += '\n\nCRITICAL SIGNATORY & DATE INSTRUCTIONS:';
-      dataContext += '\n1. For PREPARED BY section: ALWAYS use "Sonali Kakde" with designation "Clinical Audit Coordinator" and date "29/12/2025".';
-      dataContext += '\n2. For REVIEWED BY section: ALWAYS use "Gaurav Agrawal" with designation "Hospital Administrator" and date "29/12/2025".';
-      dataContext += '\n3. For APPROVED BY section: ALWAYS use "Dr. Shiraz Khan" with designation "Quality Coordinator / Administrator" and date "29/12/2025".';
-      dataContext += '\n4. For Effective Date: ALWAYS use "29/12/2025". For Review Date: ALWAYS use "29/12/2025".';
-      dataContext += '\n5. Do NOT use placeholder text like "[PREPARED BY NAME]", "[REVIEWED BY NAME]", "[DD/MM/YYYY]", or "John Doe".';
-      dataContext += '\n6. Do NOT use any other names or dates for signatories - only use the exact names and dates specified above.';
-      dataContext += '\n7. IMPORTANT: Any register, log, record, or data table MUST have AT LEAST 15 ROWS of realistic sample data. Generate complete filled data, not just 3-4 rows.';
-      if (relevantData.patients && relevantData.patients.length > 0) {
-        dataContext += '\n8. Use EXACT patient names, Visit IDs, admission dates, and discharge dates from the patient data above.';
-      }
+          // Always add signatory and date instructions
+          const today = new Date();
+          const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+          const todayFormatted = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`; // DD/MM/YYYY
 
-      // Build NABH objective info for the document header
-      const selectedObj = objectives.find(o => o.id === selectedObjective);
-      const objectiveInfo = selectedObj
-        ? `${selectedObj.code} - ${selectedObj.title}`
-        : description.substring(0, 100);
+          dataContext += '\n\nCRITICAL SIGNATORY & DATE INSTRUCTIONS:';
+          dataContext += '\n1. For PREPARED BY section: ALWAYS use "Sonali Kakde" with designation "Clinical Audit Coordinator" and date "29/12/2025".';
+          dataContext += '\n2. For REVIEWED BY section: ALWAYS use "Gaurav Agrawal" with designation "Hospital Administrator" and date "29/12/2025".';
+          dataContext += '\n3. For APPROVED BY section: ALWAYS use "Dr. Shiraz Khan" with designation "Quality Coordinator / Administrator" and date "29/12/2025".';
+          dataContext += '\n4. For Effective Date: ALWAYS use "29/12/2025". For Review Date: ALWAYS use "29/12/2025".';
+          dataContext += '\n5. Do NOT use placeholder text like "[PREPARED BY NAME]", "[REVIEWED BY NAME]", "[DD/MM/YYYY]", or "John Doe".';
+          dataContext += '\n6. Do NOT use any other names or dates for signatories - only use the exact names and dates specified above.';
+          dataContext += '\n7. IMPORTANT: Any register, log, record, or data table MUST have AT LEAST 15 ROWS of realistic sample data. Generate complete filled data, not just 3-4 rows.';
+          if (relevantData.patients && relevantData.patients.length > 0) {
+            dataContext += '\n8. Use EXACT patient names, Visit IDs, admission dates, and discharge dates from the patient data above.';
+          }
+          dataContext += `\n\nCRITICAL DATE CONSTRAINT:`;
+          dataContext += `\nToday's date is ${todayFormatted} (${todayStr}). ALL dates in generated content (maintenance logs, registers, records, schedules, audit entries, training dates, etc.) MUST be on or BEFORE today's date. Do NOT generate any dates in the future. The most recent date in any table or log should be no later than ${todayFormatted}. For example, if today is 07/02/2026, do NOT use any dates in March 2026, April 2026, or any future month/year.`;
 
-      const userMessage = `NABH OBJECTIVE (Include this EXACT value in the objective-line section of the HTML):
+          const userMessage = `NABH OBJECTIVE (Include this EXACT value in the objective-line section of the HTML):
 ${objectiveInfo}
 
 Objective Element: ${description}
@@ -1038,49 +1045,57 @@ ${item.text}${dataContext}
 
 Generate complete, ready-to-use content/template for this evidence in ENGLISH ONLY (internal document) with the hospital header, footer, signature and stamp sections as specified. Make sure to fill in the objective-line with the NABH Objective value provided above.`;
 
-      try {
-        let content: string;
+          let content: string;
 
-        // Try Gemini first, fallback to Claude
-        if (geminiApiKey) {
-          try {
-            content = await callGeminiText(geminiApiKey, contentPrompt, userMessage);
-          } catch (geminiErr) {
-            console.warn('Gemini failed for content generation, trying Claude:', geminiErr);
-            if (claudeApiKey) {
-              content = await callClaudeText(claudeApiKey, contentPrompt, userMessage);
-            } else {
-              throw geminiErr;
+          // Try Gemini first, fallback to Claude
+          if (geminiApiKey) {
+            try {
+              content = await callGeminiText(geminiApiKey, contentPrompt, userMessage);
+            } catch (geminiErr) {
+              console.warn('Gemini failed for content generation, trying Claude:', geminiErr);
+              if (claudeApiKey) {
+                content = await callClaudeText(claudeApiKey, contentPrompt, userMessage);
+              } else {
+                throw geminiErr;
+              }
             }
+          } else if (claudeApiKey) {
+            content = await callClaudeText(claudeApiKey, contentPrompt, userMessage);
+          } else {
+            throw new Error('No API key configured.');
           }
-        } else if (claudeApiKey) {
-          content = await callClaudeText(claudeApiKey, contentPrompt, userMessage);
-        } else {
-          throw new Error('No API key configured.');
+
+          // Extract editable text from the generated HTML content
+          const editableText = extractTextFromHTML(content);
+
+          contents.push({
+            evidenceItem: item.text,
+            content,
+            editableText,
+          });
+
+          setGeneratedContents([...contents]);
+        } catch (err) {
+          const errorContent = `Error generating content: ${err instanceof Error ? err.message : 'Unknown error'}`;
+          contents.push({
+            evidenceItem: item.text,
+            content: errorContent,
+            editableText: errorContent,
+          });
+          setGeneratedContents([...contents]);
         }
 
-        // Extract editable text from the generated HTML content
-        const editableText = extractTextFromHTML(content);
-
-        contents.push({
-          evidenceItem: item.text,
-          content,
-          editableText,
-        });
-
-        setGeneratedContents([...contents]);
-      } catch (err) {
-        const errorContent = `Error generating content: ${err instanceof Error ? err.message : 'Unknown error'}`;
-        contents.push({
-          evidenceItem: item.text,
-          content: errorContent,
-          editableText: errorContent,
-        });
-        setGeneratedContents([...contents]);
+        // Delay between API calls to avoid rate limiting
+        if (i < selectedItems.length - 1) {
+          await delay(2000);
+        }
       }
+    } catch (outerErr) {
+      console.error('Evidence generation loop crashed:', outerErr);
+      setError(`Generation stopped: ${contents.length} of ${selectedItems.length} documents generated.`);
+    } finally {
+      setIsGeneratingContent(false);
     }
-
-    setIsGeneratingContent(false);
   };
 
   const handleGenerateVisualEvidence = async () => {
@@ -1186,6 +1201,7 @@ Generate complete, ready-to-use content/template for this evidence in ENGLISH ON
   void _toggleDocumentViewMode; // Suppress unused variable warning
 
   // Make HTML content editable by adding contentEditable attribute and styles
+  // Also injects draggable table row sorting and column resizing
   const makeEditable = (html: string): string => {
     if (!html) return '';
     let editableHtml = html.replace(
@@ -1198,8 +1214,300 @@ Generate complete, ready-to-use content/template for this evidence in ENGLISH ON
         body[contenteditable="true"]:focus { outline: 2px solid #1565C0; outline-offset: 2px; }
         body[contenteditable="true"] *:hover { background: rgba(21, 101, 192, 0.05); }
         body[contenteditable="true"] *:focus { outline: 1px dashed #1565C0; }
+
+        /* Drag handle styles */
+        tr .drag-handle {
+          cursor: grab;
+          opacity: 0.4;
+          font-size: 16px;
+          user-select: none;
+          padding: 0 4px;
+          display: inline-block;
+          vertical-align: middle;
+          transition: opacity 0.2s;
+        }
+        tr:hover .drag-handle { opacity: 1; }
+        tr.dragging {
+          opacity: 0.5;
+          background: #e3f2fd !important;
+          outline: 2px dashed #1565C0;
+        }
+        tr.drag-over {
+          border-top: 3px solid #1565C0 !important;
+        }
+        tr.drag-over-below {
+          border-bottom: 3px solid #1565C0 !important;
+        }
+
+        /* Column resize handle styles */
+        th, td {
+          position: relative;
+        }
+        .col-resize-handle {
+          position: absolute;
+          right: -3px;
+          top: 0;
+          bottom: 0;
+          width: 6px;
+          cursor: col-resize;
+          background: transparent;
+          z-index: 10;
+          user-select: none;
+        }
+        .col-resize-handle:hover,
+        .col-resize-handle.resizing {
+          background: #1565C0;
+          opacity: 0.4;
+        }
+
+        /* Table toolbar */
+        .table-toolbar {
+          display: flex;
+          gap: 4px;
+          margin-bottom: 4px;
+          opacity: 0;
+          transition: opacity 0.2s;
+          justify-content: flex-end;
+        }
+        table:hover + .table-toolbar,
+        .table-toolbar-wrapper:hover .table-toolbar {
+          opacity: 1;
+        }
+        .table-toolbar button {
+          font-size: 11px;
+          padding: 2px 8px;
+          border: 1px solid #ccc;
+          border-radius: 4px;
+          background: #f5f5f5;
+          cursor: pointer;
+          color: #333;
+        }
+        .table-toolbar button:hover {
+          background: #e3f2fd;
+          border-color: #1565C0;
+        }
       </style></head>`
     );
+
+    // Inject drag-and-drop + column resize script before </body>
+    editableHtml = editableHtml.replace(
+      '</body>',
+      `<script>
+      (function() {
+        // === DRAGGABLE TABLE ROWS ===
+        function initDraggableTables() {
+          var tables = document.querySelectorAll('table');
+          tables.forEach(function(table) {
+            var rows = table.querySelectorAll('tbody tr, tr');
+            var headerRow = table.querySelector('thead tr, tr:first-child');
+
+            rows.forEach(function(row, idx) {
+              // Skip header row
+              if (row === headerRow || row.querySelector('th')) return;
+
+              // Add drag handle to first cell if not already present
+              var firstCell = row.querySelector('td');
+              if (firstCell && !firstCell.querySelector('.drag-handle')) {
+                var handle = document.createElement('span');
+                handle.className = 'drag-handle';
+                handle.setAttribute('contenteditable', 'false');
+                handle.innerHTML = '⠿';
+                handle.title = 'Drag to reorder row';
+                firstCell.insertBefore(handle, firstCell.firstChild);
+              }
+
+              row.setAttribute('draggable', 'true');
+
+              row.addEventListener('dragstart', function(e) {
+                e.dataTransfer.effectAllowed = 'move';
+                this.classList.add('dragging');
+                e.dataTransfer.setData('text/plain', '');
+                window._draggedRow = this;
+              });
+
+              row.addEventListener('dragend', function() {
+                this.classList.remove('dragging');
+                document.querySelectorAll('.drag-over, .drag-over-below').forEach(function(el) {
+                  el.classList.remove('drag-over', 'drag-over-below');
+                });
+                window._draggedRow = null;
+              });
+
+              row.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                if (window._draggedRow && window._draggedRow !== this) {
+                  var rect = this.getBoundingClientRect();
+                  var midY = rect.top + rect.height / 2;
+                  this.classList.remove('drag-over', 'drag-over-below');
+                  if (e.clientY < midY) {
+                    this.classList.add('drag-over');
+                  } else {
+                    this.classList.add('drag-over-below');
+                  }
+                }
+              });
+
+              row.addEventListener('dragleave', function() {
+                this.classList.remove('drag-over', 'drag-over-below');
+              });
+
+              row.addEventListener('drop', function(e) {
+                e.preventDefault();
+                var draggedRow = window._draggedRow;
+                if (draggedRow && draggedRow !== this) {
+                  var rect = this.getBoundingClientRect();
+                  var midY = rect.top + rect.height / 2;
+                  if (e.clientY < midY) {
+                    this.parentNode.insertBefore(draggedRow, this);
+                  } else {
+                    this.parentNode.insertBefore(draggedRow, this.nextSibling);
+                  }
+                }
+                this.classList.remove('drag-over', 'drag-over-below');
+              });
+            });
+
+            // === COLUMN RESIZING ===
+            var headerCells = table.querySelectorAll('th, thead td, tr:first-child td');
+            headerCells.forEach(function(cell) {
+              if (cell.querySelector('.col-resize-handle')) return;
+              var resizer = document.createElement('div');
+              resizer.className = 'col-resize-handle';
+              resizer.setAttribute('contenteditable', 'false');
+              cell.appendChild(resizer);
+
+              var startX, startWidth;
+
+              resizer.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                startX = e.pageX;
+                startWidth = cell.offsetWidth;
+                resizer.classList.add('resizing');
+                document.body.style.cursor = 'col-resize';
+
+                // Set table layout to fixed for precise column widths
+                table.style.tableLayout = 'fixed';
+                // Set initial widths if not set
+                if (!cell.style.width) {
+                  headerCells.forEach(function(c) {
+                    c.style.width = c.offsetWidth + 'px';
+                  });
+                }
+
+                function onMouseMove(e2) {
+                  var diff = e2.pageX - startX;
+                  cell.style.width = Math.max(40, startWidth + diff) + 'px';
+                }
+
+                function onMouseUp() {
+                  resizer.classList.remove('resizing');
+                  document.body.style.cursor = '';
+                  document.removeEventListener('mousemove', onMouseMove);
+                  document.removeEventListener('mouseup', onMouseUp);
+                }
+
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+              });
+            });
+
+            // === ADD ROW / ADD COLUMN TOOLBAR ===
+            var wrapper = document.createElement('div');
+            wrapper.className = 'table-toolbar-wrapper';
+            wrapper.setAttribute('contenteditable', 'false');
+            table.parentNode.insertBefore(wrapper, table);
+            wrapper.appendChild(table);
+
+            // Make table and all cells explicitly editable
+            // (wrapper is contenteditable=false for toolbar buttons, so we override on the table)
+            table.setAttribute('contenteditable', 'true');
+            table.querySelectorAll('td, th').forEach(function(cell) {
+              cell.setAttribute('contenteditable', 'true');
+              cell.style.cursor = 'text';
+            });
+
+            var toolbar = document.createElement('div');
+            toolbar.className = 'table-toolbar';
+            toolbar.setAttribute('contenteditable', 'false');
+
+            var addRowBtn = document.createElement('button');
+            addRowBtn.textContent = '+ Row';
+            addRowBtn.title = 'Add a new row at the bottom';
+            addRowBtn.onclick = function(e) {
+              e.preventDefault();
+              var lastRow = table.querySelector('tbody tr:last-child') || table.querySelector('tr:last-child');
+              if (lastRow) {
+                var newRow = lastRow.cloneNode(true);
+                newRow.querySelectorAll('td').forEach(function(td) {
+                  var handle = td.querySelector('.drag-handle');
+                  if (handle) {
+                    td.innerHTML = '';
+                    td.appendChild(handle.cloneNode(true));
+                  } else {
+                    td.textContent = '';
+                  }
+                  td.setAttribute('contenteditable', 'true');
+                  td.style.cursor = 'text';
+                });
+                lastRow.parentNode.appendChild(newRow);
+                initDraggableTables(); // Re-init to add drag handlers
+              }
+            };
+
+            var addColBtn = document.createElement('button');
+            addColBtn.textContent = '+ Column';
+            addColBtn.title = 'Add a new column';
+            addColBtn.onclick = function(e) {
+              e.preventDefault();
+              table.querySelectorAll('tr').forEach(function(row) {
+                var lastCell = row.querySelector('th:last-child, td:last-child');
+                if (lastCell) {
+                  var newCell = document.createElement(lastCell.tagName);
+                  newCell.textContent = '';
+                  newCell.setAttribute('contenteditable', 'true');
+                  newCell.style.cssText = lastCell.style.cssText;
+                  newCell.style.cursor = 'text';
+                  if (lastCell.tagName === 'TH') {
+                    newCell.style.background = '#1565C0';
+                    newCell.style.color = 'white';
+                  }
+                  row.appendChild(newCell);
+                }
+              });
+              initDraggableTables(); // Re-init for resize handles
+            };
+
+            var delRowBtn = document.createElement('button');
+            delRowBtn.textContent = '- Row';
+            delRowBtn.title = 'Remove last row';
+            delRowBtn.onclick = function(e) {
+              e.preventDefault();
+              var dataRows = table.querySelectorAll('tbody tr, tr:not(:first-child)');
+              var lastDataRow = dataRows[dataRows.length - 1];
+              if (lastDataRow && !lastDataRow.querySelector('th')) {
+                lastDataRow.remove();
+              }
+            };
+
+            toolbar.appendChild(addRowBtn);
+            toolbar.appendChild(addColBtn);
+            toolbar.appendChild(delRowBtn);
+            wrapper.insertBefore(toolbar, table);
+          });
+        }
+
+        // Initialize when DOM is ready
+        if (document.readyState === 'complete') {
+          initDraggableTables();
+        } else {
+          window.addEventListener('load', initDraggableTables);
+        }
+      })();
+      </script></body>`
+    );
+
     return editableHtml;
   };
 
@@ -1221,9 +1529,39 @@ Generate complete, ready-to-use content/template for this evidence in ENGLISH ON
           body.style.removeProperty('outline');
           body.style.removeProperty('cursor');
         }
+
+        // Clean up drag handles, resize handles, toolbars, and wrapper divs
+        iframeDoc.querySelectorAll('.drag-handle').forEach(el => el.remove());
+        iframeDoc.querySelectorAll('.col-resize-handle').forEach(el => el.remove());
+        iframeDoc.querySelectorAll('.table-toolbar').forEach(el => el.remove());
+        // Unwrap tables from toolbar wrappers
+        iframeDoc.querySelectorAll('.table-toolbar-wrapper').forEach(wrapper => {
+          const table = wrapper.querySelector('table');
+          if (table && wrapper.parentNode) {
+            wrapper.parentNode.insertBefore(table, wrapper);
+            wrapper.remove();
+          }
+        });
+        // Remove draggable attribute from rows
+        iframeDoc.querySelectorAll('tr[draggable]').forEach(row => {
+          row.removeAttribute('draggable');
+          row.classList.remove('dragging', 'drag-over', 'drag-over-below');
+        });
+        // Remove injected script
+        iframeDoc.querySelectorAll('script').forEach(s => s.remove());
+        // Reset table-layout and remove contenteditable from tables/cells
+        iframeDoc.querySelectorAll('table').forEach(t => {
+          t.style.removeProperty('table-layout');
+          t.removeAttribute('contenteditable');
+        });
+        iframeDoc.querySelectorAll('td, th').forEach(cell => {
+          cell.removeAttribute('contenteditable');
+          (cell as HTMLElement).style.removeProperty('cursor');
+        });
+
         const editingStyles = iframeDoc.querySelectorAll('style');
         editingStyles.forEach(style => {
-          if (style.textContent?.includes('contenteditable')) {
+          if (style.textContent?.includes('contenteditable') || style.textContent?.includes('drag-handle')) {
             style.remove();
           }
         });
@@ -2497,8 +2835,9 @@ ${trimmed}
         <DialogContent sx={{ p: 2 }}>
           <Alert severity="info" sx={{ mb: 2 }}>
             <Typography variant="body2">
-              Click directly on the document to edit text. Changes are made directly in the formatted preview.
-              Use the <strong>Save Changes</strong> button below to save your edits.
+              Click directly on the document to edit text. <strong>Tables are draggable</strong> — use the ⠿ handle to drag and reorder rows.
+              Drag column edges to resize. Use <strong>+ Row</strong> / <strong>+ Column</strong> / <strong>- Row</strong> buttons above each table.
+              Click <strong>Save Changes</strong> below when done.
             </Typography>
           </Alert>
           <Paper
