@@ -1420,6 +1420,14 @@ Generate complete, ready-to-use content/template for this evidence in ENGLISH ON
             table.parentNode.insertBefore(wrapper, table);
             wrapper.appendChild(table);
 
+            // Make table and all cells explicitly editable
+            // (wrapper is contenteditable=false for toolbar buttons, so we override on the table)
+            table.setAttribute('contenteditable', 'true');
+            table.querySelectorAll('td, th').forEach(function(cell) {
+              cell.setAttribute('contenteditable', 'true');
+              cell.style.cursor = 'text';
+            });
+
             var toolbar = document.createElement('div');
             toolbar.className = 'table-toolbar';
             toolbar.setAttribute('contenteditable', 'false');
@@ -1440,6 +1448,8 @@ Generate complete, ready-to-use content/template for this evidence in ENGLISH ON
                   } else {
                     td.textContent = '';
                   }
+                  td.setAttribute('contenteditable', 'true');
+                  td.style.cursor = 'text';
                 });
                 lastRow.parentNode.appendChild(newRow);
                 initDraggableTables(); // Re-init to add drag handlers
@@ -1456,7 +1466,9 @@ Generate complete, ready-to-use content/template for this evidence in ENGLISH ON
                 if (lastCell) {
                   var newCell = document.createElement(lastCell.tagName);
                   newCell.textContent = '';
+                  newCell.setAttribute('contenteditable', 'true');
                   newCell.style.cssText = lastCell.style.cssText;
+                  newCell.style.cursor = 'text';
                   if (lastCell.tagName === 'TH') {
                     newCell.style.background = '#1565C0';
                     newCell.style.color = 'white';
@@ -1537,9 +1549,14 @@ Generate complete, ready-to-use content/template for this evidence in ENGLISH ON
         });
         // Remove injected script
         iframeDoc.querySelectorAll('script').forEach(s => s.remove());
-        // Reset table-layout if set
+        // Reset table-layout and remove contenteditable from tables/cells
         iframeDoc.querySelectorAll('table').forEach(t => {
           t.style.removeProperty('table-layout');
+          t.removeAttribute('contenteditable');
+        });
+        iframeDoc.querySelectorAll('td, th').forEach(cell => {
+          cell.removeAttribute('contenteditable');
+          (cell as HTMLElement).style.removeProperty('cursor');
         });
 
         const editingStyles = iframeDoc.querySelectorAll('style');
