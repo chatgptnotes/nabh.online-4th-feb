@@ -934,6 +934,8 @@ export default function AIEvidenceGenerator() {
 
   const selectedCount = evidenceItems.filter(item => item.selected).length;
 
+  const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
   const handleGenerateContent = async () => {
     const selectedItems = evidenceItems.filter(item => item.selected);
 
@@ -945,6 +947,9 @@ export default function AIEvidenceGenerator() {
     // Get objective code for document numbering
     const selectedObj = objectives.find(o => o.id === selectedObjective);
     const objectiveCode = selectedObj?.code || 'GENERAL';
+    const objectiveInfo = selectedObj
+      ? `${selectedObj.code} - ${selectedObj.title}`
+      : description.substring(0, 100);
 
     setIsGeneratingContent(true);
     setError('');
@@ -954,81 +959,83 @@ export default function AIEvidenceGenerator() {
 
     const contents: GeneratedContent[] = [];
 
-    for (let i = 0; i < selectedItems.length; i++) {
-      const item = selectedItems[i];
-      setContentProgress({ current: i + 1, total: selectedItems.length });
+    try {
+      for (let i = 0; i < selectedItems.length; i++) {
+        const item = selectedItems[i];
+        setContentProgress({ current: i + 1, total: selectedItems.length });
 
-      // Use training-specific prompt for training-related evidence
-      const contentPrompt = isTrainingEvidence(item.text)
-        ? getTrainingPrompt(hospitalConfig)
-        : getContentPrompt(hospitalConfig, objectiveCode);
+        try {
+          // Use training-specific prompt for training-related evidence
+          const contentPrompt = isTrainingEvidence(item.text)
+            ? getTrainingPrompt(hospitalConfig)
+            : getContentPrompt(hospitalConfig, objectiveCode);
 
-      // Fetch real patient/staff data from nabh_patients table
-      const relevantData = await getRelevantData(item.text);
+          // Fetch real patient/staff data from nabh_patients table
+          const relevantData = await getRelevantData(item.text);
 
-      // Build data context with real patient data
-      let dataContext = '';
+          // Build data context with real patient data
+          let dataContext = '';
 
-      if (relevantData.patients && relevantData.patients.length > 0) {
-        dataContext += '\n\n=== REAL PATIENT DATA FROM DATABASE (Use these EXACT values) ===\n';
-        relevantData.patients.forEach((p: { visit_id: string; patient_name: string; diagnosis?: string | null; admission_date?: string | null; discharge_date?: string | null; status: string }, idx: number) => {
-          dataContext += `Patient ${idx + 1}:\n`;
-          dataContext += `  - Visit ID/UHID: ${p.visit_id}\n`;
-          dataContext += `  - Patient Name: ${p.patient_name}\n`;
-          dataContext += `  - Diagnosis: ${p.diagnosis || 'General'}\n`;
-          dataContext += `  - Admission Date: ${p.admission_date || 'N/A'}\n`;
-          dataContext += `  - Discharge Date: ${p.discharge_date || 'N/A'}\n`;
-          dataContext += `  - Status: ${p.status}\n\n`;
-        });
-      }
+          if (relevantData.patients && relevantData.patients.length > 0) {
+            dataContext += '\n\n=== REAL PATIENT DATA FROM DATABASE (Use these EXACT values) ===\n';
+            relevantData.patients.forEach((p: { visit_id: string; patient_name: string; diagnosis?: string | null; admission_date?: string | null; discharge_date?: string | null; status: string }, idx: number) => {
+              dataContext += `Patient ${idx + 1}:\n`;
+              dataContext += `  - Visit ID/UHID: ${p.visit_id}\n`;
+              dataContext += `  - Patient Name: ${p.patient_name}\n`;
+              dataContext += `  - Diagnosis: ${p.diagnosis || 'General'}\n`;
+              dataContext += `  - Admission Date: ${p.admission_date || 'N/A'}\n`;
+              dataContext += `  - Discharge Date: ${p.discharge_date || 'N/A'}\n`;
+              dataContext += `  - Status: ${p.status}\n\n`;
+            });
+          }
 
-      if (relevantData.staff && relevantData.staff.length > 0) {
-        dataContext += '\n=== REAL STAFF DATA FROM DATABASE (Use these EXACT values) ===\n';
-        relevantData.staff.forEach((s: { name: string; role: string; designation: string; department: string }, idx: number) => {
-          dataContext += `Staff ${idx + 1}:\n`;
-          dataContext += `  - Name: ${s.name}\n`;
-          dataContext += `  - Role: ${s.role}\n`;
-          dataContext += `  - Designation: ${s.designation}\n`;
-          dataContext += `  - Department: ${s.department}\n\n`;
-        });
-      }
+          if (relevantData.staff && relevantData.staff.length > 0) {
+            dataContext += '\n=== REAL STAFF DATA FROM DATABASE (Use these EXACT values) ===\n';
+            relevantData.staff.forEach((s: { name: string; role: string; designation: string; department: string }, idx: number) => {
+              dataContext += `Staff ${idx + 1}:\n`;
+              dataContext += `  - Name: ${s.name}\n`;
+              dataContext += `  - Role: ${s.role}\n`;
+              dataContext += `  - Designation: ${s.designation}\n`;
+              dataContext += `  - Department: ${s.department}\n\n`;
+            });
+          }
 
-      // Add consultant/doctor data to prompt
-      if (relevantData.consultants && relevantData.consultants.length > 0) {
-        dataContext += '\n=== VISITING CONSULTANTS / DOCTORS (Use ONLY these names for doctors) ===\n';
-        dataContext += 'CRITICAL: Do NOT invent doctor names. ONLY use doctors from this list:\n\n';
-        relevantData.consultants.forEach((c: { sr_no: number; name: string; department: string; qualification?: string | null; registration_no?: string | null }, idx: number) => {
-          dataContext += `Doctor ${idx + 1}:\n`;
-          dataContext += `  - Name: ${c.name}\n`;
-          dataContext += `  - Department: ${c.department}\n`;
-          dataContext += `  - Qualification: ${c.qualification || 'N/A'}\n`;
-          dataContext += `  - Registration No: ${c.registration_no || 'N/A'}\n\n`;
-        });
-        dataContext += 'DO NOT create fake doctor names like "Dr. Sharma", "Dr. Verma", "Dr. Gupta", "Dr. Khan", "Dr. Patel", "Dr. Singh".\n';
-        dataContext += 'DO NOT create fake nurse names like "Nurse Patel", "Nurse Kumar", "Nurse Singh", "Nurse Yadav".\n';
-        dataContext += 'Only use the doctor names listed above.\n';
-      }
+          // Add consultant/doctor data to prompt
+          if (relevantData.consultants && relevantData.consultants.length > 0) {
+            dataContext += '\n=== VISITING CONSULTANTS / DOCTORS (Use ONLY these names for doctors) ===\n';
+            dataContext += 'CRITICAL: Do NOT invent doctor names. ONLY use doctors from this list:\n\n';
+            relevantData.consultants.forEach((c: { sr_no: number; name: string; department: string; qualification?: string | null; registration_no?: string | null }, idx: number) => {
+              dataContext += `Doctor ${idx + 1}:\n`;
+              dataContext += `  - Name: ${c.name}\n`;
+              dataContext += `  - Department: ${c.department}\n`;
+              dataContext += `  - Qualification: ${c.qualification || 'N/A'}\n`;
+              dataContext += `  - Registration No: ${c.registration_no || 'N/A'}\n\n`;
+            });
+            dataContext += 'DO NOT create fake doctor names like "Dr. Sharma", "Dr. Verma", "Dr. Gupta", "Dr. Khan", "Dr. Patel", "Dr. Singh".\n';
+            dataContext += 'DO NOT create fake nurse names like "Nurse Patel", "Nurse Kumar", "Nurse Singh", "Nurse Yadav".\n';
+            dataContext += 'Only use the doctor names listed above.\n';
+          }
 
-      // Always add signatory and date instructions
-      dataContext += '\n\nCRITICAL SIGNATORY & DATE INSTRUCTIONS:';
-      dataContext += '\n1. For PREPARED BY section: ALWAYS use "Sonali Kakde" with designation "Clinical Audit Coordinator" and date "29/12/2025".';
-      dataContext += '\n2. For REVIEWED BY section: ALWAYS use "Gaurav Agrawal" with designation "Hospital Administrator" and date "29/12/2025".';
-      dataContext += '\n3. For APPROVED BY section: ALWAYS use "Dr. Shiraz Khan" with designation "Quality Coordinator / Administrator" and date "29/12/2025".';
-      dataContext += '\n4. For Effective Date: ALWAYS use "29/12/2025". For Review Date: ALWAYS use "29/12/2025".';
-      dataContext += '\n5. Do NOT use placeholder text like "[PREPARED BY NAME]", "[REVIEWED BY NAME]", "[DD/MM/YYYY]", or "John Doe".';
-      dataContext += '\n6. Do NOT use any other names or dates for signatories - only use the exact names and dates specified above.';
-      dataContext += '\n7. IMPORTANT: Any register, log, record, or data table MUST have AT LEAST 15 ROWS of realistic sample data. Generate complete filled data, not just 3-4 rows.';
-      if (relevantData.patients && relevantData.patients.length > 0) {
-        dataContext += '\n8. Use EXACT patient names, Visit IDs, admission dates, and discharge dates from the patient data above.';
-      }
+          // Always add signatory and date instructions
+          const today = new Date();
+          const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+          const todayFormatted = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`; // DD/MM/YYYY
 
-      // Build NABH objective info for the document header
-      const selectedObj = objectives.find(o => o.id === selectedObjective);
-      const objectiveInfo = selectedObj
-        ? `${selectedObj.code} - ${selectedObj.title}`
-        : description.substring(0, 100);
+          dataContext += '\n\nCRITICAL SIGNATORY & DATE INSTRUCTIONS:';
+          dataContext += '\n1. For PREPARED BY section: ALWAYS use "Sonali Kakde" with designation "Clinical Audit Coordinator" and date "29/12/2025".';
+          dataContext += '\n2. For REVIEWED BY section: ALWAYS use "Gaurav Agrawal" with designation "Hospital Administrator" and date "29/12/2025".';
+          dataContext += '\n3. For APPROVED BY section: ALWAYS use "Dr. Shiraz Khan" with designation "Quality Coordinator / Administrator" and date "29/12/2025".';
+          dataContext += '\n4. For Effective Date: ALWAYS use "29/12/2025". For Review Date: ALWAYS use "29/12/2025".';
+          dataContext += '\n5. Do NOT use placeholder text like "[PREPARED BY NAME]", "[REVIEWED BY NAME]", "[DD/MM/YYYY]", or "John Doe".';
+          dataContext += '\n6. Do NOT use any other names or dates for signatories - only use the exact names and dates specified above.';
+          dataContext += '\n7. IMPORTANT: Any register, log, record, or data table MUST have AT LEAST 15 ROWS of realistic sample data. Generate complete filled data, not just 3-4 rows.';
+          if (relevantData.patients && relevantData.patients.length > 0) {
+            dataContext += '\n8. Use EXACT patient names, Visit IDs, admission dates, and discharge dates from the patient data above.';
+          }
+          dataContext += `\n\nCRITICAL DATE CONSTRAINT:`;
+          dataContext += `\nToday's date is ${todayFormatted} (${todayStr}). ALL dates in generated content (maintenance logs, registers, records, schedules, audit entries, training dates, etc.) MUST be on or BEFORE today's date. Do NOT generate any dates in the future. The most recent date in any table or log should be no later than ${todayFormatted}. For example, if today is 07/02/2026, do NOT use any dates in March 2026, April 2026, or any future month/year.`;
 
-      const userMessage = `NABH OBJECTIVE (Include this EXACT value in the objective-line section of the HTML):
+          const userMessage = `NABH OBJECTIVE (Include this EXACT value in the objective-line section of the HTML):
 ${objectiveInfo}
 
 Objective Element: ${description}
@@ -1038,49 +1045,57 @@ ${item.text}${dataContext}
 
 Generate complete, ready-to-use content/template for this evidence in ENGLISH ONLY (internal document) with the hospital header, footer, signature and stamp sections as specified. Make sure to fill in the objective-line with the NABH Objective value provided above.`;
 
-      try {
-        let content: string;
+          let content: string;
 
-        // Try Gemini first, fallback to Claude
-        if (geminiApiKey) {
-          try {
-            content = await callGeminiText(geminiApiKey, contentPrompt, userMessage);
-          } catch (geminiErr) {
-            console.warn('Gemini failed for content generation, trying Claude:', geminiErr);
-            if (claudeApiKey) {
-              content = await callClaudeText(claudeApiKey, contentPrompt, userMessage);
-            } else {
-              throw geminiErr;
+          // Try Gemini first, fallback to Claude
+          if (geminiApiKey) {
+            try {
+              content = await callGeminiText(geminiApiKey, contentPrompt, userMessage);
+            } catch (geminiErr) {
+              console.warn('Gemini failed for content generation, trying Claude:', geminiErr);
+              if (claudeApiKey) {
+                content = await callClaudeText(claudeApiKey, contentPrompt, userMessage);
+              } else {
+                throw geminiErr;
+              }
             }
+          } else if (claudeApiKey) {
+            content = await callClaudeText(claudeApiKey, contentPrompt, userMessage);
+          } else {
+            throw new Error('No API key configured.');
           }
-        } else if (claudeApiKey) {
-          content = await callClaudeText(claudeApiKey, contentPrompt, userMessage);
-        } else {
-          throw new Error('No API key configured.');
+
+          // Extract editable text from the generated HTML content
+          const editableText = extractTextFromHTML(content);
+
+          contents.push({
+            evidenceItem: item.text,
+            content,
+            editableText,
+          });
+
+          setGeneratedContents([...contents]);
+        } catch (err) {
+          const errorContent = `Error generating content: ${err instanceof Error ? err.message : 'Unknown error'}`;
+          contents.push({
+            evidenceItem: item.text,
+            content: errorContent,
+            editableText: errorContent,
+          });
+          setGeneratedContents([...contents]);
         }
 
-        // Extract editable text from the generated HTML content
-        const editableText = extractTextFromHTML(content);
-
-        contents.push({
-          evidenceItem: item.text,
-          content,
-          editableText,
-        });
-
-        setGeneratedContents([...contents]);
-      } catch (err) {
-        const errorContent = `Error generating content: ${err instanceof Error ? err.message : 'Unknown error'}`;
-        contents.push({
-          evidenceItem: item.text,
-          content: errorContent,
-          editableText: errorContent,
-        });
-        setGeneratedContents([...contents]);
+        // Delay between API calls to avoid rate limiting
+        if (i < selectedItems.length - 1) {
+          await delay(2000);
+        }
       }
+    } catch (outerErr) {
+      console.error('Evidence generation loop crashed:', outerErr);
+      setError(`Generation stopped: ${contents.length} of ${selectedItems.length} documents generated.`);
+    } finally {
+      setIsGeneratingContent(false);
     }
-
-    setIsGeneratingContent(false);
   };
 
   const handleGenerateVisualEvidence = async () => {
