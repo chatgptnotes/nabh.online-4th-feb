@@ -48,6 +48,7 @@ export default function RecentSOPsPage() {
   const [dbChapters, setDbChapters] = useState<any[]>([]);
   const [selectedChapterId, setSelectedChapterId] = useState<string>('');
   const [selectedChapterCode, setSelectedChapterCode] = useState<string>('');
+  const [isCustomChapter, setIsCustomChapter] = useState(false);
   const [objectives, setObjectives] = useState<any[]>([]);
   const [selectedObjective, setSelectedObjective] = useState<string>('');
 
@@ -138,9 +139,14 @@ export default function RecentSOPsPage() {
           p.title?.toLowerCase().includes('f4') &&
           p.title?.toLowerCase().includes('filter prompt')
         ) || result.data.find(p =>
+          p.title?.toLowerCase().includes('f1,') ||
+          p.title?.toLowerCase().includes('f1 ')
+        ) || result.data.find(p =>
           p.title?.toLowerCase().includes('ai filter') ||
           p.title?.toLowerCase().includes('filter')
         );
+        console.log('[DEBUG] All prompt titles:', result.data.map(p => p.title));
+        console.log('[DEBUG] Combined prompt found:', defaultCombinedPrompt?.title);
         if (defaultCombinedPrompt) {
           setSelectedCombinedPromptId(defaultCombinedPrompt.id);
         }
@@ -498,7 +504,7 @@ export default function RecentSOPsPage() {
 
       await html2pdf().set({
         margin: [15, 10, 15, 10],  // 15mm top/bottom, 10mm left/right
-        filename: `SOP-${selectedChapterCode}-${selectedObjective || 'General'}.pdf`,
+        filename: `SOP-${selectedChapterCode}-${(selectedObjective || 'General').replace(/[\/\\:*?"<>|]/g, '-').substring(0, 40)}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
@@ -602,11 +608,7 @@ export default function RecentSOPsPage() {
             onChange={async (e) => {
               const id = e.target.value;
               setSelectedChapterId(id);
-              const chapter = dbChapters.find(ch => ch.id === id);
-              if (chapter) {
-                const codeMatch = chapter.name.match(/^[A-Z]{3}/);
-                setSelectedChapterCode(codeMatch ? codeMatch[0] : '');
-              }
+
               // Clear all fields
               setOldSOPText('');
               setFilteredContent('');
@@ -616,6 +618,91 @@ export default function RecentSOPsPage() {
               setSelectedObjective('');
               setObjectiveTitle('');
               setInterpretation('');
+
+              // Handle Custom chapter
+              if (id === '__custom__') {
+                setIsCustomChapter(true);
+                setSelectedChapterCode('CUSTOM');
+                setObjectives([]);
+                setCombinedFilterInput('');
+
+                // Auto-load default prompts for Custom mode too
+                if (sopPrompts.length > 0) {
+                  const defaultFilterPrompt = sopPrompts.find(p =>
+                    p.title?.toLowerCase().includes('ai filter prompt') &&
+                    p.title?.toLowerCase().includes('extract relevant')
+                  ) || sopPrompts.find(p =>
+                    p.title?.toLowerCase().includes('ai filter') ||
+                    p.title?.toLowerCase().includes('filter')
+                  );
+                  if (defaultFilterPrompt) {
+                    setSelectedFilterPromptId(defaultFilterPrompt.id);
+                    setFilterPrompt(defaultFilterPrompt.prompt);
+                  }
+                  const defaultCombinedPrompt = sopPrompts.find(p =>
+                    p.title?.toLowerCase().includes('f1') &&
+                    p.title?.toLowerCase().includes('f3') &&
+                    p.title?.toLowerCase().includes('f4') &&
+                    p.title?.toLowerCase().includes('filter prompt')
+                  ) || sopPrompts.find(p =>
+                    p.title?.toLowerCase().includes('ai filter') ||
+                    p.title?.toLowerCase().includes('filter')
+                  );
+                  if (defaultCombinedPrompt) {
+                    setSelectedCombinedPromptId(defaultCombinedPrompt.id);
+                  }
+                  const defaultPrompt = sopPrompts.find(p =>
+                    p.title === 'Final Prompt: SOP Generation Instructions'
+                  );
+                  if (defaultPrompt) {
+                    setSelectedPromptId(defaultPrompt.id);
+                    setFinalPrompt(defaultPrompt.prompt);
+                  }
+                }
+                return;
+              }
+
+              setIsCustomChapter(false);
+
+              // Restore default prompts when switching back to a regular chapter
+              if (sopPrompts.length > 0) {
+                const defaultFilterPrompt = sopPrompts.find(p =>
+                  p.title?.toLowerCase().includes('ai filter prompt') &&
+                  p.title?.toLowerCase().includes('extract relevant')
+                ) || sopPrompts.find(p =>
+                  p.title?.toLowerCase().includes('ai filter') ||
+                  p.title?.toLowerCase().includes('filter')
+                );
+                if (defaultFilterPrompt) {
+                  setSelectedFilterPromptId(defaultFilterPrompt.id);
+                  setFilterPrompt(defaultFilterPrompt.prompt);
+                }
+                const defaultCombinedPrompt = sopPrompts.find(p =>
+                  p.title?.toLowerCase().includes('f1') &&
+                  p.title?.toLowerCase().includes('f3') &&
+                  p.title?.toLowerCase().includes('f4') &&
+                  p.title?.toLowerCase().includes('filter prompt')
+                ) || sopPrompts.find(p =>
+                  p.title?.toLowerCase().includes('ai filter') ||
+                  p.title?.toLowerCase().includes('filter')
+                );
+                if (defaultCombinedPrompt) {
+                  setSelectedCombinedPromptId(defaultCombinedPrompt.id);
+                }
+                const defaultPrompt = sopPrompts.find(p =>
+                  p.title === 'Final Prompt: SOP Generation Instructions'
+                );
+                if (defaultPrompt) {
+                  setSelectedPromptId(defaultPrompt.id);
+                  setFinalPrompt(defaultPrompt.prompt);
+                }
+              }
+
+              const chapter = dbChapters.find(ch => ch.id === id);
+              if (chapter) {
+                const codeMatch = chapter.name.match(/^[A-Z]{3}/);
+                setSelectedChapterCode(codeMatch ? codeMatch[0] : '');
+              }
 
               // Auto-fetch F1 data from nabh_chapter_data for this chapter
               if (id) {
@@ -653,6 +740,9 @@ export default function RecentSOPsPage() {
             {dbChapters.map((ch) => (
               <MenuItem key={ch.id} value={ch.id}>{ch.name}</MenuItem>
             ))}
+            <MenuItem value="__custom__" sx={{ borderTop: '1px solid #ddd', fontWeight: 600, color: '#1976d2' }}>
+              ✏️ Custom (Enter manually)
+            </MenuItem>
           </Select>
         </FormControl>
 
@@ -704,22 +794,43 @@ export default function RecentSOPsPage() {
         <Paper elevation={1} sx={{ border: '1px solid #ccc', borderRadius: 1 }}>
           <Box sx={{ p: 1, borderBottom: '1px solid #ccc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#ede7f6' }}>
             <Typography variant="subtitle2" fontWeight="bold">F2: Objective Element (3rd Edition)</Typography>
+            {isCustomChapter && (
+              <Chip label="Custom Mode" size="small" color="primary" variant="outlined" />
+            )}
           </Box>
           <Box sx={{ p: 1.5 }}>
-            <FormControl fullWidth size="small" disabled={!selectedChapterId}>
-              <InputLabel>Select Objective Element</InputLabel>
-              <Select
+            {isCustomChapter ? (
+              <input
+                type="text"
                 value={selectedObjective}
-                label="Select Objective Element"
-                onChange={(e) => handleObjectiveChange(e.target.value)}
-              >
-                {objectives.map((obj) => (
-                  <MenuItem key={obj.objective_code} value={obj.objective_code}>
-                    {obj.objective_code} - {obj.title?.substring(0, 60)}...
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+                onChange={(e) => setSelectedObjective(e.target.value)}
+                placeholder="Enter custom objective code (e.g., COP.1.a)"
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  fontSize: '0.9rem',
+                  border: '1px solid #ccc',
+                  borderRadius: '4px',
+                  outline: 'none',
+                  boxSizing: 'border-box' as const,
+                }}
+              />
+            ) : (
+              <FormControl fullWidth size="small" disabled={!selectedChapterId}>
+                <InputLabel>Select Objective Element</InputLabel>
+                <Select
+                  value={selectedObjective}
+                  label="Select Objective Element"
+                  onChange={(e) => handleObjectiveChange(e.target.value)}
+                >
+                  {objectives.map((obj) => (
+                    <MenuItem key={obj.objective_code} value={obj.objective_code}>
+                      {obj.objective_code} - {obj.title?.substring(0, 60)}...
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
           </Box>
         </Paper>
 

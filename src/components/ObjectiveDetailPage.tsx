@@ -277,6 +277,9 @@ export default function ObjectiveDetailPage() {
   const [selectedDocForEvidence, setSelectedDocForEvidence] = useState<string | null>(null);
   const [lastGeneratedDocId, setLastGeneratedDocId] = useState<string | null>(null);
 
+  // Custom prompt for evidence generation
+  const [documentCustomPrompt, setDocumentCustomPrompt] = useState('');
+
   // Hospital config for evidence generation
   const nabhCoordinator = getNABHCoordinator();
   const currentHospital = getHospitalInfo(selectedHospital);
@@ -3354,6 +3357,7 @@ Provide only the Hindi explanation, no English text. The explanation should be c
           email: hospitalConfig.email,
           website: hospitalConfig.website,
         },
+        customPrompt: documentCustomPrompt.trim() || undefined,
       });
 
       setDocumentEvidenceResult(result);
@@ -5014,6 +5018,20 @@ Provide only the Hindi explanation, no English text. The explanation should be c
                     Add Link
                   </Button>
                 </Box>
+
+                {/* Custom Prompt Input - Always visible */}
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Custom Prompt (Optional)"
+                  placeholder="e.g., Focus on infection control data, Generate as a monthly audit report, Include compliance percentages..."
+                  value={documentCustomPrompt}
+                  onChange={(e) => setDocumentCustomPrompt(e.target.value)}
+                  multiline
+                  minRows={2}
+                  maxRows={5}
+                  helperText="Add custom instructions to guide how the AI formats the evidence document."
+                />
 
                 {/* Uploaded Documents List */}
                 {uploadedDocumentsForEvidence.length > 0 && (

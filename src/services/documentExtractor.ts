@@ -5,6 +5,7 @@
  */
 
 import { callGeminiAPI, callGeminiVisionAPI } from '../lib/supabase';
+import { fetchRealPatients, fetchRealStaff, fetchVisitingConsultants } from './hopeHospitalDatabase';
 
 export interface ExtractionResult {
   success: boolean;
@@ -572,7 +573,7 @@ export const generateSOPFromContent = async (
 
   const today = new Date();
   const effectiveDate = new Date(2025, 8, 9); // Fixed: 09 Sept 2025
-  const reviewDate = new Date(effectiveDate.getFullYear() + 1, effectiveDate.getMonth(), effectiveDate.getDate()); // effectiveDate + 1 year
+  const reviewDate = new Date(2025, 8, 9); // Same date: 09 Sept 2025
   const formatDate = (d: Date) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   const objectiveTitle = titlesInterpretation.split('\n')[0] || '';
 
@@ -588,6 +589,25 @@ export const generateSOPFromContent = async (
   if (!customPrompt || !customPrompt.trim()) {
     return { success: false, sop: '', error: 'No SOP generation prompt provided. Please select a prompt from the database.' };
   }
+
+  // Fetch real patient, staff, and doctor data from database
+  const [realPatients, realStaff, realDoctors] = await Promise.all([
+    fetchRealPatients(10),
+    fetchRealStaff(),
+    fetchVisitingConsultants(),
+  ]);
+
+  const patientList = realPatients.length > 0
+    ? realPatients.map(p => `- ${p.patient_name} (Visit ID: ${p.visit_id}, Diagnosis: ${p.diagnosis || 'N/A'})`).join('\n')
+    : 'No patient data available';
+
+  const staffList = realStaff.length > 0
+    ? realStaff.map(s => `- ${s.name} (${s.designation}, ${s.department})`).join('\n')
+    : 'No staff data available';
+
+  const doctorList = realDoctors.length > 0
+    ? realDoctors.map(d => `- Dr. ${d.name} (${d.department || 'Consultant'})`).join('\n')
+    : 'No doctor data available';
 
   try {
     const prompt = `You are an expert in NABH (National Accreditation Board for Hospitals and Healthcare Providers) accreditation documentation for Hope Hospital.
@@ -605,6 +625,18 @@ ${pdfContent}
 
 ## User Specific Instructions:
 ${customPrompt}
+
+## REAL HOSPITAL DATABASE - USE ONLY THESE NAMES (mandatory):
+### Patients:
+${patientList}
+
+### Staff Members:
+${staffList}
+
+### Doctors / Visiting Consultants:
+${doctorList}
+
+IMPORTANT: Whenever the SOP references patient names, staff names, or doctor names, you MUST use ONLY the real names from the database above. Do NOT invent or fabricate any names.
 
 IMPORTANT: Generate the output as a complete, valid HTML document with embedded CSS styling. The document must be modern, professional, and print-ready.
 
