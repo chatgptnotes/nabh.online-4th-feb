@@ -1201,6 +1201,7 @@ Generate complete, ready-to-use content/template for this evidence in ENGLISH ON
   void _toggleDocumentViewMode; // Suppress unused variable warning
 
   // Make HTML content editable by adding contentEditable attribute and styles
+  // Also injects draggable table row sorting and column resizing
   const makeEditable = (html: string): string => {
     if (!html) return '';
     let editableHtml = html.replace(
@@ -1213,8 +1214,288 @@ Generate complete, ready-to-use content/template for this evidence in ENGLISH ON
         body[contenteditable="true"]:focus { outline: 2px solid #1565C0; outline-offset: 2px; }
         body[contenteditable="true"] *:hover { background: rgba(21, 101, 192, 0.05); }
         body[contenteditable="true"] *:focus { outline: 1px dashed #1565C0; }
+
+        /* Drag handle styles */
+        tr .drag-handle {
+          cursor: grab;
+          opacity: 0.4;
+          font-size: 16px;
+          user-select: none;
+          padding: 0 4px;
+          display: inline-block;
+          vertical-align: middle;
+          transition: opacity 0.2s;
+        }
+        tr:hover .drag-handle { opacity: 1; }
+        tr.dragging {
+          opacity: 0.5;
+          background: #e3f2fd !important;
+          outline: 2px dashed #1565C0;
+        }
+        tr.drag-over {
+          border-top: 3px solid #1565C0 !important;
+        }
+        tr.drag-over-below {
+          border-bottom: 3px solid #1565C0 !important;
+        }
+
+        /* Column resize handle styles */
+        th, td {
+          position: relative;
+        }
+        .col-resize-handle {
+          position: absolute;
+          right: -3px;
+          top: 0;
+          bottom: 0;
+          width: 6px;
+          cursor: col-resize;
+          background: transparent;
+          z-index: 10;
+          user-select: none;
+        }
+        .col-resize-handle:hover,
+        .col-resize-handle.resizing {
+          background: #1565C0;
+          opacity: 0.4;
+        }
+
+        /* Table toolbar */
+        .table-toolbar {
+          display: flex;
+          gap: 4px;
+          margin-bottom: 4px;
+          opacity: 0;
+          transition: opacity 0.2s;
+          justify-content: flex-end;
+        }
+        table:hover + .table-toolbar,
+        .table-toolbar-wrapper:hover .table-toolbar {
+          opacity: 1;
+        }
+        .table-toolbar button {
+          font-size: 11px;
+          padding: 2px 8px;
+          border: 1px solid #ccc;
+          border-radius: 4px;
+          background: #f5f5f5;
+          cursor: pointer;
+          color: #333;
+        }
+        .table-toolbar button:hover {
+          background: #e3f2fd;
+          border-color: #1565C0;
+        }
       </style></head>`
     );
+
+    // Inject drag-and-drop + column resize script before </body>
+    editableHtml = editableHtml.replace(
+      '</body>',
+      `<script>
+      (function() {
+        // === DRAGGABLE TABLE ROWS ===
+        function initDraggableTables() {
+          var tables = document.querySelectorAll('table');
+          tables.forEach(function(table) {
+            var rows = table.querySelectorAll('tbody tr, tr');
+            var headerRow = table.querySelector('thead tr, tr:first-child');
+
+            rows.forEach(function(row, idx) {
+              // Skip header row
+              if (row === headerRow || row.querySelector('th')) return;
+
+              // Add drag handle to first cell if not already present
+              var firstCell = row.querySelector('td');
+              if (firstCell && !firstCell.querySelector('.drag-handle')) {
+                var handle = document.createElement('span');
+                handle.className = 'drag-handle';
+                handle.setAttribute('contenteditable', 'false');
+                handle.innerHTML = '⠿';
+                handle.title = 'Drag to reorder row';
+                firstCell.insertBefore(handle, firstCell.firstChild);
+              }
+
+              row.setAttribute('draggable', 'true');
+
+              row.addEventListener('dragstart', function(e) {
+                e.dataTransfer.effectAllowed = 'move';
+                this.classList.add('dragging');
+                e.dataTransfer.setData('text/plain', '');
+                window._draggedRow = this;
+              });
+
+              row.addEventListener('dragend', function() {
+                this.classList.remove('dragging');
+                document.querySelectorAll('.drag-over, .drag-over-below').forEach(function(el) {
+                  el.classList.remove('drag-over', 'drag-over-below');
+                });
+                window._draggedRow = null;
+              });
+
+              row.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                if (window._draggedRow && window._draggedRow !== this) {
+                  var rect = this.getBoundingClientRect();
+                  var midY = rect.top + rect.height / 2;
+                  this.classList.remove('drag-over', 'drag-over-below');
+                  if (e.clientY < midY) {
+                    this.classList.add('drag-over');
+                  } else {
+                    this.classList.add('drag-over-below');
+                  }
+                }
+              });
+
+              row.addEventListener('dragleave', function() {
+                this.classList.remove('drag-over', 'drag-over-below');
+              });
+
+              row.addEventListener('drop', function(e) {
+                e.preventDefault();
+                var draggedRow = window._draggedRow;
+                if (draggedRow && draggedRow !== this) {
+                  var rect = this.getBoundingClientRect();
+                  var midY = rect.top + rect.height / 2;
+                  if (e.clientY < midY) {
+                    this.parentNode.insertBefore(draggedRow, this);
+                  } else {
+                    this.parentNode.insertBefore(draggedRow, this.nextSibling);
+                  }
+                }
+                this.classList.remove('drag-over', 'drag-over-below');
+              });
+            });
+
+            // === COLUMN RESIZING ===
+            var headerCells = table.querySelectorAll('th, thead td, tr:first-child td');
+            headerCells.forEach(function(cell) {
+              if (cell.querySelector('.col-resize-handle')) return;
+              var resizer = document.createElement('div');
+              resizer.className = 'col-resize-handle';
+              resizer.setAttribute('contenteditable', 'false');
+              cell.appendChild(resizer);
+
+              var startX, startWidth;
+
+              resizer.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                startX = e.pageX;
+                startWidth = cell.offsetWidth;
+                resizer.classList.add('resizing');
+                document.body.style.cursor = 'col-resize';
+
+                // Set table layout to fixed for precise column widths
+                table.style.tableLayout = 'fixed';
+                // Set initial widths if not set
+                if (!cell.style.width) {
+                  headerCells.forEach(function(c) {
+                    c.style.width = c.offsetWidth + 'px';
+                  });
+                }
+
+                function onMouseMove(e2) {
+                  var diff = e2.pageX - startX;
+                  cell.style.width = Math.max(40, startWidth + diff) + 'px';
+                }
+
+                function onMouseUp() {
+                  resizer.classList.remove('resizing');
+                  document.body.style.cursor = '';
+                  document.removeEventListener('mousemove', onMouseMove);
+                  document.removeEventListener('mouseup', onMouseUp);
+                }
+
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+              });
+            });
+
+            // === ADD ROW / ADD COLUMN TOOLBAR ===
+            var wrapper = document.createElement('div');
+            wrapper.className = 'table-toolbar-wrapper';
+            wrapper.setAttribute('contenteditable', 'false');
+            table.parentNode.insertBefore(wrapper, table);
+            wrapper.appendChild(table);
+
+            var toolbar = document.createElement('div');
+            toolbar.className = 'table-toolbar';
+            toolbar.setAttribute('contenteditable', 'false');
+
+            var addRowBtn = document.createElement('button');
+            addRowBtn.textContent = '+ Row';
+            addRowBtn.title = 'Add a new row at the bottom';
+            addRowBtn.onclick = function(e) {
+              e.preventDefault();
+              var lastRow = table.querySelector('tbody tr:last-child') || table.querySelector('tr:last-child');
+              if (lastRow) {
+                var newRow = lastRow.cloneNode(true);
+                newRow.querySelectorAll('td').forEach(function(td) {
+                  var handle = td.querySelector('.drag-handle');
+                  if (handle) {
+                    td.innerHTML = '';
+                    td.appendChild(handle.cloneNode(true));
+                  } else {
+                    td.textContent = '';
+                  }
+                });
+                lastRow.parentNode.appendChild(newRow);
+                initDraggableTables(); // Re-init to add drag handlers
+              }
+            };
+
+            var addColBtn = document.createElement('button');
+            addColBtn.textContent = '+ Column';
+            addColBtn.title = 'Add a new column';
+            addColBtn.onclick = function(e) {
+              e.preventDefault();
+              table.querySelectorAll('tr').forEach(function(row) {
+                var lastCell = row.querySelector('th:last-child, td:last-child');
+                if (lastCell) {
+                  var newCell = document.createElement(lastCell.tagName);
+                  newCell.textContent = '';
+                  newCell.style.cssText = lastCell.style.cssText;
+                  if (lastCell.tagName === 'TH') {
+                    newCell.style.background = '#1565C0';
+                    newCell.style.color = 'white';
+                  }
+                  row.appendChild(newCell);
+                }
+              });
+              initDraggableTables(); // Re-init for resize handles
+            };
+
+            var delRowBtn = document.createElement('button');
+            delRowBtn.textContent = '- Row';
+            delRowBtn.title = 'Remove last row';
+            delRowBtn.onclick = function(e) {
+              e.preventDefault();
+              var dataRows = table.querySelectorAll('tbody tr, tr:not(:first-child)');
+              var lastDataRow = dataRows[dataRows.length - 1];
+              if (lastDataRow && !lastDataRow.querySelector('th')) {
+                lastDataRow.remove();
+              }
+            };
+
+            toolbar.appendChild(addRowBtn);
+            toolbar.appendChild(addColBtn);
+            toolbar.appendChild(delRowBtn);
+            wrapper.insertBefore(toolbar, table);
+          });
+        }
+
+        // Initialize when DOM is ready
+        if (document.readyState === 'complete') {
+          initDraggableTables();
+        } else {
+          window.addEventListener('load', initDraggableTables);
+        }
+      })();
+      </script></body>`
+    );
+
     return editableHtml;
   };
 
@@ -1236,9 +1517,34 @@ Generate complete, ready-to-use content/template for this evidence in ENGLISH ON
           body.style.removeProperty('outline');
           body.style.removeProperty('cursor');
         }
+
+        // Clean up drag handles, resize handles, toolbars, and wrapper divs
+        iframeDoc.querySelectorAll('.drag-handle').forEach(el => el.remove());
+        iframeDoc.querySelectorAll('.col-resize-handle').forEach(el => el.remove());
+        iframeDoc.querySelectorAll('.table-toolbar').forEach(el => el.remove());
+        // Unwrap tables from toolbar wrappers
+        iframeDoc.querySelectorAll('.table-toolbar-wrapper').forEach(wrapper => {
+          const table = wrapper.querySelector('table');
+          if (table && wrapper.parentNode) {
+            wrapper.parentNode.insertBefore(table, wrapper);
+            wrapper.remove();
+          }
+        });
+        // Remove draggable attribute from rows
+        iframeDoc.querySelectorAll('tr[draggable]').forEach(row => {
+          row.removeAttribute('draggable');
+          row.classList.remove('dragging', 'drag-over', 'drag-over-below');
+        });
+        // Remove injected script
+        iframeDoc.querySelectorAll('script').forEach(s => s.remove());
+        // Reset table-layout if set
+        iframeDoc.querySelectorAll('table').forEach(t => {
+          t.style.removeProperty('table-layout');
+        });
+
         const editingStyles = iframeDoc.querySelectorAll('style');
         editingStyles.forEach(style => {
-          if (style.textContent?.includes('contenteditable')) {
+          if (style.textContent?.includes('contenteditable') || style.textContent?.includes('drag-handle')) {
             style.remove();
           }
         });
@@ -2512,8 +2818,9 @@ ${trimmed}
         <DialogContent sx={{ p: 2 }}>
           <Alert severity="info" sx={{ mb: 2 }}>
             <Typography variant="body2">
-              Click directly on the document to edit text. Changes are made directly in the formatted preview.
-              Use the <strong>Save Changes</strong> button below to save your edits.
+              Click directly on the document to edit text. <strong>Tables are draggable</strong> — use the ⠿ handle to drag and reorder rows.
+              Drag column edges to resize. Use <strong>+ Row</strong> / <strong>+ Column</strong> / <strong>- Row</strong> buttons above each table.
+              Click <strong>Save Changes</strong> below when done.
             </Typography>
           </Alert>
           <Paper
