@@ -12,7 +12,10 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "mcp__ide__getDiagnostics",
-      "Bash(npx vite build)"
+      "Bash(npx vite build)",
+      "Bash(git push:*)",
+      "Bash(gh pr view:*)",
+      "Bash(python3:*)"
     ]
   }
 }
