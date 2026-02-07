@@ -719,7 +719,7 @@ export const formatDocumentAsEvidence = async (
   }
 
   try {
-    const { documentData, objectiveCode, objectiveTitle, fileNames, hospitalConfig } = request;
+    const { documentData, objectiveCode, objectiveTitle, fileNames, hospitalConfig, customPrompt } = request;
 
     // Build detailed content from extracted documents
     const documentSections: string[] = [];
@@ -792,7 +792,7 @@ IMPORTANT INSTRUCTIONS:
 6. **CRITICAL - DO NOT MODIFY THE SIGNATURE SECTION**: Copy the auth-table HTML EXACTLY as provided below - DO NOT change names, designations, dates, or signature images
 
 OBJECTIVE CONTEXT: ${objectiveCode} - ${objectiveTitle}
-
+${customPrompt ? `\nUSER CUSTOM INSTRUCTIONS:\n${customPrompt}\n` : ''}
 UPLOADED DOCUMENT CONTENT TO FORMAT:
 ${documentSections.join('\n\n')}
 

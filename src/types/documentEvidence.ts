@@ -102,6 +102,8 @@ export interface FormatDocumentRequest {
     website: string;
     logo?: string;
   };
+  /** Custom prompt / additional instructions from user */
+  customPrompt?: string;
 }
 
 /** Generated evidence result */

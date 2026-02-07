@@ -53,7 +53,8 @@ export const uploadSOPPdf = async (
 ): Promise<{ success: boolean; url?: string; path?: string; size?: number; error?: string }> => {
   try {
     const timestamp = Date.now();
-    const fileName = `${chapterCode}/${objectiveCode.replace(/\./g, '-')}_${timestamp}.pdf`;
+    const safeObjectiveCode = objectiveCode.replace(/[\/\\:*?"<>|]/g, '-').replace(/\./g, '-').substring(0, 40);
+    const fileName = `${chapterCode}/${safeObjectiveCode}_${timestamp}.pdf`;
 
     const { data, error } = await supabase.storage
       .from('sop-documents')
@@ -96,8 +97,8 @@ export const saveGeneratedSOP = async (
   try {
     const { data: userData } = await supabase.auth.getUser();
 
-    const effectiveDate = new Date().toISOString().split('T')[0];
-    const reviewDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const effectiveDate = '2025-09-09';
+    const reviewDate = '2025-09-09';
 
     const record = {
       chapter_id: sopData.chapter_id,
@@ -111,7 +112,7 @@ export const saveGeneratedSOP = async (
       pdf_url: pdfUrl || null,
       pdf_file_path: pdfPath || null,
       pdf_file_size: pdfSize || null,
-      document_number: `SOP-${sopData.chapter_code}-${sopData.objective_code.replace(/\./g, '-')}-${new Date().getFullYear()}`,
+      document_number: `SOP-${sopData.chapter_code}-${sopData.objective_code.replace(/[\/\\:*?"<>|]/g, '-').replace(/\./g, '-').substring(0, 40)}-${new Date().getFullYear()}`,
       version: sopData.version || '1.0',
       department: sopData.department || 'Quality Department',
       category: sopData.category || 'Administrative',
